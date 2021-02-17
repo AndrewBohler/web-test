@@ -5,16 +5,14 @@ import json
 import ssl
 import time
 
-# directory = Path("C:/Users/drewb/Downloads")
-filename = Path("payload.txt")
+log_file = Path("local/log.txt")
 
-# incoming_payload_file = directory / filename
-incoming_payload_file = filename
-print(incoming_payload_file)
+print("logging to", log_file)
 
-if not os.path.exists(incoming_payload_file):
-    with open(incoming_payload_file, "w") as file:
-        file.write("# start of file\n")
+if not os.path.exists(log_file):
+    with open(log_file, "w") as file:
+        current_time = time.strftime(r"%y-%m-%d %H:%M:%S")
+        file.write(current_time + "log created\n")
 
 app = Flask(__name__)
 
@@ -24,7 +22,7 @@ def index():
     current_time = time.strftime(r"%y-%m-%d %H:%M:%S")
     timestamp = f"[{current_time}]"
     if request.method == "GET":
-        return "<h1>Hello from Webhook Listener!</h1><h4>Josh is man!!!</h4><p>This is some stuff that I am writing for fun</p>"
+        return "<h1>Hello from my test website!</h1><h4>How another header</h4><p>And maybe a paragraph...</p>"
 
     if request.method == "POST":
         try:
@@ -32,7 +30,7 @@ def index():
             req_json = json.loads(request.get_json())
             msg = req_json.get("message")
             if msg:
-                with open(incoming_payload_file, "a") as file:
+                with open(log_file, "a") as file:
                     print("writing:", msg)
                     file.write(timestamp)
                     file.write(msg)
@@ -45,14 +43,6 @@ def index():
             return '{"success":"false", "message":"You suck"}'
 
         return r'{"success":"true", "other":{"thing1":"something", "thing2":"something else"}}'
-
-
-def main(*args, **kwargs):
-    for arg in args:
-        print(arg)
-
-    for kwarg in kwargs:
-        print(kwarg)
 
 
 if __name__ == "__main__":
