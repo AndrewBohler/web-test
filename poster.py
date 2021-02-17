@@ -6,23 +6,42 @@ import requests
 import threading
 import time
 
-from typing import Callable, Optional, Type
+from typing import Callable, Dict, List, Optional, Type
+
+from requests import exceptions
 
 
 URL_t = Type[str]
 
-
-TARGET = "http://localhost:5000"
 NAME = ""
 
 JSON = None
 
 
-class ExitChat(Exception):
-    pass
+class ChatException(Exception):
+    def __str__(self) -> str:
+        return "generic chat exception"
 
 
-CHAT_COMMANDS = dict()
+class ExitChat(ChatException):
+    def __str__(self) -> str:
+        return "exit command invoked"
+
+
+class InvalidArguments(ChatException):
+    def __str__(self) -> str:
+        return "a command was invoked with invalid arguments"
+
+
+def exitChat(args: Optional[List] = None):
+    if args:
+        raise InvalidArguments
+    else:
+        raise ExitChat
+
+
+CHAT_COMMANDS: Dict[str, Callable] = dict()
+CHAT_COMMANDS["exit"] = exitChat
 
 
 def get_json(url):
@@ -48,16 +67,24 @@ def format_status_code(status: int):
 
 
 def enter_chat():
-    print("press <enter> to send message, <ctrl-C> to quit")
+    print('type "/exit" to exit chat')
     status = ""
-    try:
-        while True:
+    while True:
+        try:
             msg = input(f"[{status:>3}]{NAME}>")
 
-            if msg[0] == "/":
+            if not msg:
+                status = ""
+                continue
+
+            elif msg[0] == "/":
                 cmd = msg[1:].split(" ")
 
-                if cmd[0] in CHAT_COMMANDS:
+                if not cmd:
+                    status = ""
+                    continue
+
+                elif cmd[0] in CHAT_COMMANDS:
                     CHAT_COMMANDS[cmd[0]](cmd[1:])
                     continue
 
@@ -67,14 +94,20 @@ def enter_chat():
 
             msg = msg.replace("\\n", "\n")
             payload = {"message": msg}
-            r = requests.post(url=TARGET, json=json.dumps(payload))
+            r = requests.post(url=URL + "/chat", json=json.dumps(payload))
             r_json = r.json()
             success = "SUCCESS" if r_json.get("success") else "FAILURE"
             message = r_json.get("message", "")
             status = format_status_code(r.status_code)
 
-    except ExitChat:
-        print("exiting chat")
+        except ExitChat as e:
+            print(e)
+            break
+
+        except ChatException as e:
+            print(e)
+            status = ""
+            continue
 
 
 def connectToServer() -> bool:
@@ -82,7 +115,7 @@ def connectToServer() -> bool:
     try:
         payload = {"request_type": "login", "username": NAME}
         print("requesting GET")
-        resp = requests.get(url=URL, json=json.dumps(payload))
+        resp = requests.get(url=URL + "/login", json=json.dumps(payload))
         print("recieved response", resp.status_code)
         resp = resp.json()
 
@@ -105,6 +138,11 @@ def connectToServer() -> bool:
     except Exception as e:
         print("exception occurred while trying to connect to", URL, "\n" + str(e))
         return False
+
+
+def listen_to_chat():
+    payload = json.dumps({})
+    resp = requests.get(url=URL + "/chat", json=payload)
 
 
 def main():

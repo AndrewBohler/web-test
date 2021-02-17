@@ -31,18 +31,26 @@ app = Flask(__name__)
 
 @app.route("/login", methods=["GET"])
 def loginRequst():
-    req = json.loads(request.json)
+    try:
+        req = json.loads(request.json)
 
-    if "request_type" not in req:
-        return json.dumps({"message": "request type not provided"})
+        if "username" in req:
+            token = req["username"]
 
-    if "username" in req:
-        token = req["username"]
+            if not token in USERS:
+                USERS[token] = User(token)  # token is username for now
+                msg = "user created!"
 
-        if not token in USERS:
-            USERS[token] = User(token)  # token is username for now
+            else:
+                msg = "user found!"
 
-        return json.dumps({"token": token})
+            return json.dumps({"success": True, "token": token, "message": msg})
+
+        else:
+            return json.dumps({"success": False, "message": "invalid login"})
+
+    except Exception as e:
+        print(e)
 
 
 @app.route("/chat", methods=["POST", "GET"])
@@ -52,22 +60,30 @@ def chat():
             data = dict()
             req = json.loads(request.json)
             if not req:
-                return "invalid request"
+                return json.dumps({"success": False, "message": "invalid request"})
 
             if "token" not in req:
-                return json.dumps({"message": "user must provide token to post"})
+                return json.dumps(
+                    {"success": False, "message": "user must provide token to post"}
+                )
 
             token = req["token"]
-            update_time = USERS[token].time
+
+            if token not in USERS:
+                return json.dumps({"success": False, "message": "invalid token"})
+
+            user = USERS[token]
 
             index = 0
             for i, m in enumerate(CHAT[-1:-1:-1]):
-                if m.time < update_time:
+                if m.time < user.time:
                     index = -i
                     break
 
+            user.time = time.time()
+
             if index == 0:
-                return ""
+                return json.dumps({"messages": []})
 
             else:
                 return json.dumps({"messages": CHAT[index:]})
@@ -136,15 +152,18 @@ def index():
 
 
 def main(*args, **kwargs):
-    for arg in args:
-        print(arg)
+    while True:
+        try:
+            app.run(
+                host="0.0.0.0", port=5000, threaded=True, debug=True
+            )  # will listen on port 5000
 
-    for kwarg in kwargs:
-        print(kwarg)
+        except Exception as e:
+            print(e)
+            print("restarting app")
+            continue
 
 
 if __name__ == "__main__":
-    app.run(
-        host="0.0.0.0", port=5000, threaded=True, debug=True
-    )  # will listen on port 5000
+    main()
 
