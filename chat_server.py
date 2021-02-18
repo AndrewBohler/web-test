@@ -2,13 +2,14 @@ from collections import defaultdict, deque, namedtuple
 import colorama
 from dataclasses import dataclass
 from flask import Flask, request
+from itertools import islice
 import os
 from pathlib import Path
 import json
 import ssl
 import time
 
-from typing import Deque, Dict, Type
+from typing import Deque, Dict, NamedTuple, Type
 
 # from flask.wrappers import Request
 
@@ -20,7 +21,12 @@ class User:
     color = colorama.Fore.YELLOW
 
 
-Message = namedtuple("Message", "time user content")
+class Message(NamedTuple):
+    content: str
+    user: str = ""
+    time: float = time.time()
+
+
 Token = Type[str]
 
 CHAT: Deque[Message] = deque(maxlen=1000)
@@ -32,7 +38,8 @@ app = Flask(__name__)
 @app.route("/login", methods=["GET"])
 def loginRequst():
     try:
-        req = json.loads(request.json)
+        req = request.json
+        return_string = ""
 
         if "username" in req:
             token = req["username"]
@@ -40,60 +47,82 @@ def loginRequst():
             if not token in USERS:
                 USERS[token] = User(token)  # token is username for now
                 msg = "user created!"
+                print("created user", USERS[token])
 
             else:
                 msg = "user found!"
 
-            return json.dumps({"success": True, "token": token, "message": msg})
+            return_string = json.dumps(
+                {"success": True, "token": token, "message": msg}
+            )
 
         else:
-            return json.dumps({"success": False, "message": "invalid login"})
+            return_string = json.dumps({"success": False, "message": "invalid login"})
+
+        print("\n\treturn_string:", return_string, "\n")
+
+        return return_string
 
     except Exception as e:
-        print(e)
+        print("exception! what happended: ", e)
+        return "internal failure: " + str(e)
 
 
 @app.route("/chat", methods=["POST", "GET"])
 def chat():
     if request.method == "GET":
         try:
-            data = dict()
-            req = json.loads(request.json)
+            req = request.json
+
             if not req:
                 return json.dumps({"success": False, "message": "invalid request"})
 
-            if "token" not in req:
+            if "token" not in req.keys():
                 return json.dumps(
-                    {"success": False, "message": "user must provide token to post"}
+                    {
+                        "success": False,
+                        "message": "user must provide token to post",
+                        "messages": None,
+                    }
                 )
 
             token = req["token"]
 
-            if token not in USERS:
-                return json.dumps({"success": False, "message": "invalid token"})
+            if not token in USERS.keys():
+                return json.dumps(
+                    {"success": False, "message": "invalid token", "messages": None}
+                )
 
             user = USERS[token]
 
-            index = 0
-            for i, m in enumerate(CHAT[-1:-1:-1]):
-                if m.time < user.time:
-                    index = -i
+            index = None
+            for i, m in enumerate(CHAT):
+                if m.time > user.time:
+                    index = i
                     break
 
             user.time = time.time()
 
-            if index == 0:
-                return json.dumps({"messages": []})
+            if index is None:
+                return json.dumps({"messages": None})
 
             else:
-                return json.dumps({"messages": CHAT[index:]})
+                return json.dumps(
+                    {
+                        "messages": [
+                            {"time": m.time, "user": m.user, "content": m.content}
+                            for m in list(CHAT)
+                        ]
+                    }
+                )
 
         except Exception as e:
             print("exception occured during GET request:", str(e))
+            return r'{"result": "failure"}'
 
     if request.method == "POST":
         try:
-            req = json.loads(request.json)
+            req = request.json
             if "token" not in req:
                 return json.dumps({"message": "token must be provided"})
             elif "message" not in req:
@@ -104,12 +133,13 @@ def chat():
             user = USERS[token]
             content = req["message"]
 
-            msg = Message(post_time, user, content)
+            msg = Message(user.name, content, post_time)
             CHAT.append(msg)
             return json.dumps({"status": "success", "message": "message posted"})
 
         except Exception as e:
             print("exception occured during POST request:", str(e))
+            return "failure: " + str(e)
 
 
 @app.route("/", methods=["POST", "GET"])
