@@ -1,7 +1,7 @@
 from collections import defaultdict, deque, namedtuple
 import colorama
 from dataclasses import dataclass
-from flask import Flask, request
+from flask import abort, Flask, request, jsonify
 from itertools import islice
 import os
 from pathlib import Path
@@ -10,8 +10,6 @@ import ssl
 import time
 
 from typing import Deque, Dict, NamedTuple, Type
-
-# from flask.wrappers import Request
 
 
 @dataclass
@@ -35,111 +33,110 @@ USERS: Dict[Token, User] = dict()
 app = Flask(__name__)
 
 
+@app.errorhandler(400)
+def bad_request(e):
+    return jsonify(error=str(e)), 400
+
+
+@app.errorhandler(404)
+def resource_not_found(e):
+    return jsonify(error=str(e)), 404
+
+
+@app.errorhandler(500)
+def internal_error(e):
+    original_exception = getattr(e, "original_exception", None)
+    if original_exception:
+        return jsonify(error=str(original_exception)), 500
+    else:
+        return jsonify(error=str(e)), 500
+
+
 @app.route("/login", methods=["GET"])
 def loginRequst():
-    try:
-        req = request.json
-        return_string = ""
+    req = request.json
 
-        if "username" in req:
-            token = req["username"]
+    if type(req) is not dict:
+        abort(400, description="invalid json")
 
-            if not token in USERS:
-                USERS[token] = User(token)  # token is username for now
-                msg = "user created!"
-                print("created user", USERS[token])
+    elif "username" in req:
+        token = req["username"]
 
-            else:
-                msg = "user found!"
-
-            return_string = json.dumps(
-                {"success": True, "token": token, "message": msg}
-            )
+        if not token in USERS:
+            USERS[token] = User(token)  # token is username for now
+            return {"token": token}, 201
 
         else:
-            return_string = json.dumps({"success": False, "message": "invalid login"})
+            return {"token": token}, 200
 
-        print("\n\treturn_string:", return_string, "\n")
-
-        return return_string
-
-    except Exception as e:
-        print("exception! what happended: ", e)
-        return "internal failure: " + str(e)
+    else:
+        abort(400, description="must provide username")
 
 
 @app.route("/chat", methods=["POST", "GET"])
 def chat():
     if request.method == "GET":
-        try:
-            req = request.json
+        req = request.json
 
-            if not req:
-                return json.dumps({"success": False, "message": "invalid request"})
+        if not req:
+            abort(400, description="expected a json")
 
-            if "token" not in req.keys():
-                return json.dumps(
-                    {
-                        "success": False,
-                        "message": "user must provide token to post",
-                        "messages": None,
-                    }
-                )
+        elif type(req) is not dict:
+            abort(400, description="json format incorrect")
 
-            token = req["token"]
+        elif "token" not in req.keys():
+            abort(400, description="token not provided")
 
-            if not token in USERS.keys():
-                return json.dumps(
-                    {"success": False, "message": "invalid token", "messages": None}
-                )
+        token = req["token"]
 
-            user = USERS[token]
+        if not token in USERS.keys():
+            abort(400, description="token invalid")
 
-            index = None
-            for i, m in enumerate(CHAT):
-                if m.time > user.time:
-                    index = i
-                    break
+        user = USERS[token]
 
-            user.time = time.time()
+        index = None
+        for i, m in enumerate(CHAT):
+            if m.time > user.time:
+                index = i
+                break
 
-            if index is None:
-                return json.dumps({"messages": None})
+        user.time = time.time()
 
-            else:
-                return json.dumps(
-                    {
-                        "messages": [
-                            {"time": m.time, "user": m.user, "content": m.content}
-                            for m in list(CHAT)
-                        ]
-                    }
-                )
+        if index is None:
+            return jsonify(message=None), 204
 
-        except Exception as e:
-            print("exception occured during GET request:", str(e))
-            return r'{"result": "failure"}'
+        else:
+            messages = [
+                {"time": m.time, "user": m.user, "content": m.content}
+                for m in list(CHAT)
+            ]
+            return jsonify(messages=messages), 200
 
     if request.method == "POST":
-        try:
-            req = request.json
-            if "token" not in req:
-                return json.dumps({"message": "token must be provided"})
-            elif "message" not in req:
-                return json.dumps({"message": "message invalid"})
+        req = request.json
+        if "token" not in req:
+            abort(400, description="must provide token")
+        elif "message" not in req:
+            abort(400, description="must provide message")
 
-            token = req["token"]
-            post_time = time.time()
-            user = USERS[token]
-            content = req["message"]
+        token = req["token"]
 
-            msg = Message(user.name, content, post_time)
-            CHAT.append(msg)
-            return json.dumps({"status": "success", "message": "message posted"})
+        if token not in USERS.keys():
+            abort(400, "invalid token")
 
-        except Exception as e:
-            print("exception occured during POST request:", str(e))
-            return "failure: " + str(e)
+        user = USERS[token]
+
+        content = req["message"]
+
+        if type(content) is not str:
+            abort(400, description="message must be a string")
+
+        post_time = time.time()
+
+        msg = Message(user.name, content, post_time)
+        CHAT.append(msg)
+
+        return jsonify(None), 204
 
 
 @app.route("/", methods=["POST", "GET"])
@@ -155,43 +152,24 @@ def index():
         )
 
     elif request.method == "POST":
-        try:
-            print("Recieved POST, ", end="")
-            req_json = json.loads(request.get_json())
-            msg = req_json.get("message")
-            if msg:
-                print(msg)
-                return json.dumps(
-                    {
-                        "success": True,
-                        "message": "message recieved, throwing into the trash now",
-                    }
-                )
+        req = request.json
+        if type(req) is not dict:
+            abort(400, description="request not understood")
 
-            else:
-                return json.dumps(
-                    {
-                        "success": False,
-                        "message": "well, you didn't provide a message, but I would have thrown it away anyways...",
-                    }
-                )
+        msg = getattr(req, "message", None)
 
-        except TypeError as error:
-            print(error)
-            return json.dumps({"sucess": False, "message": str(error)})
+        if msg:
+            return jsonify(message="message recieved, throwing into the trash now"), 200
+        else:
+            return jsonify(
+                message="well you didn't provide a message, but I would have thrown it away anyways!"
+            )
 
 
 def main(*args, **kwargs):
-    while True:
-        try:
-            app.run(
-                host="0.0.0.0", port=5000, threaded=True, debug=True
-            )  # will listen on port 5000
-
-        except Exception as e:
-            print(e)
-            print("restarting app")
-            continue
+    app.run(
+        host="0.0.0.0", port=5000, threaded=True, debug=True
+    )  # will listen on port 5000
 
 
 if __name__ == "__main__":
