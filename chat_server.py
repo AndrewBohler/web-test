@@ -115,29 +115,25 @@ def chat():
 
     if request.method == "POST":
         req = request.json
-        if "token" not in req:
+
+        token = req.get("token", None)
+        if not token:
             abort(400, description="must provide token")
-        elif "message" not in req:
+
+        message = req.get("message", None)
+        if not message:
             abort(400, description="must provide message")
 
-        token = req["token"]
-
-        if token not in USERS.keys():
-            abort(400, "invalid token")
-
-        user = USERS[token]
-
-        content = req["message"]
-
-        if type(content) is not str:
+        elif type(message) is not str:
             abort(400, description="message must be a string")
 
-        post_time = time.time()
+        user = USERS.get(token, None)
+        if not user:
+            abort(400, "invalid token")
 
-        msg = Message(content, user.name, post_time)
-        CHAT.append(msg)
+        CHAT.append(Message(message, user.name, time.time()))
 
-        return jsonify(None), 204
+        return {}, 204
 
 
 @app.route("/", methods=["POST", "GET"])
@@ -157,17 +153,15 @@ def index():
         if type(req) is not dict:
             abort(400, description="request not understood")
 
-        msg = getattr(req, "message", None)
-
-        if msg:
-            return jsonify(message="message recieved, throwing into the trash now"), 200
-        else:
-            return (
-                jsonify(
-                    message="well you didn't provide a message, but I would have thrown it away anyways!"
-                ),
-                200,
+        msg = req.get("message", None)
+        if not msg:
+            abort(
+                400,
+                "well you didn't provide a message, "
+                "but I would have thrown it away anyways!",
             )
+
+        return jsonify(message="message recieved, throwing into the trash now")
 
 
 def main(*args, **kwargs):
