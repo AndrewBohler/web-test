@@ -20,7 +20,6 @@ class User:
 
 
 class Message(NamedTuple):
-    "message as a NamedTuple is json serializable"
     content: str
     user: str = ""
     time: float = time.time()
@@ -134,7 +133,7 @@ def chat():
 
         post_time = time.time()
 
-        msg = Message(content, user.name, post_time)
+        msg = Message(user.name, content, post_time)
         CHAT.append(msg)
 
         return jsonify(None), 204
@@ -162,11 +161,8 @@ def index():
         if msg:
             return jsonify(message="message recieved, throwing into the trash now"), 200
         else:
-            return (
-                jsonify(
-                    message="well you didn't provide a message, but I would have thrown it away anyways!"
-                ),
-                200,
+            return jsonify(
+                message="well you didn't provide a message, but I would have thrown it away anyways!"
             )
 
 
