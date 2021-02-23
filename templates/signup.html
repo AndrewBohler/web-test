@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en">
+
+{% extends "layout/default.html"%}
+
+{% block content %}
+<div>
+    {{ form.username.label }}<br/>
+    {{ form.username }}<br/>
+    {{ form.password.label }}<br/>
+    {{ form.password }}<br/>
+    {{ form.confirmation.label }}<br/>
+    {{ form.confirmation }}<br/>
+    <button type="submit" label="signup">signup</button>
+    <a href="{{ url_for('login') }}">login</a>
+</div>
+{% endblock content %}
+
+</html>

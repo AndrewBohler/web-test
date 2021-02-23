@@ -1,0 +1,23 @@
+<html>
+
+<head>
+    {% if title %}
+    <title>{{ title }} - Microblog</title>
+    {% else %}
+    <title>Welcome to Microblog!</title>
+    {% endif %}
+</head>
+
+<body>
+    <h1>Hello, {{ user.username }}!</h1>
+    <p>
+        {% for msg in messages %}
+    <div>
+        <b style="color:{{ msg.user.color }}">{{ msg.user.name }} color is {{ msg.user.color }} </b>
+        <b style="color:grey; background-color:powderblue">{{ msg.content }}</b>
+    </div>
+    {% endfor %}
+    </p>
+</body>
+
+</html>

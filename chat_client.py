@@ -9,49 +9,117 @@ import time
 from typing import Callable, Dict, List, Optional, Type
 
 from requests import exceptions
+from requests.packages.urllib3.exceptions import HTTPError
+
+import error
 
 
 URL_t = Type[str]
-
 NAME = ""
-
-JSON = None
-
-
-class ChatException(Exception):
-    def __str__(self) -> str:
-        return "generic chat exception"
-
-
-class ExitChat(ChatException):
-    def __str__(self) -> str:
-        return "exit command invoked"
-
-
-class InvalidArguments(ChatException):
-    def __str__(self) -> str:
-        return "a command was invoked with invalid arguments"
-
-
-def exitChat(args: Optional[List] = None):
-    if args:
-        raise InvalidArguments
-    else:
-        raise ExitChat
-
-
 CHAT_COMMANDS: Dict[str, Callable] = dict()
-CHAT_COMMANDS["exit"] = exitChat
 
 
-def get_json(url):
-    if url:
-        r = requests.get(url)
-        r_json = r.json()
-        print(json.dumps(r_json, indent=2))
-        return r_json
+def handleChatCommand(line: str):
+    if len(line) < 2:
+        raise error.ChatInvalidCommand(reason="no command given")
+    command, *args = line[1:].split(" ")
+    cmd = CHAT_COMMANDS.get(command, None)
+    if cmd is None:
+        raise error.ChatInvalidCommand(invalid_name=command)
+    cmd(*args)
+
+
+def chatCommand(
+    command: Callable = None,
+    *,
+    name: str = "",
+    help: str = "",
+    syntax: str = "",
+    arguments: List[str] = None,
+):
+    def register(command):
+        nonlocal name
+        if not name:
+            name = command.__name__
+        CHAT_COMMANDS[name] = command
+
+        command._help = help
+        command._syntax = syntax
+        command._arguments = arguments
+        print("registered", name, "as a chat command")
+
+    def decorator(command: Callable):
+        register(command)
+        return command
+
+    if command is None:
+        return decorator
     else:
-        return dict()
+        register(command)
+        return command
+
+
+@chatCommand(name="exit")
+def exitChat(*args) -> None:
+    "exit the chat"
+    if args:
+        raise error.ChatInvalidArgument
+    else:
+        raise error.ChatExit
+
+
+@chatCommand(arguments=["resource messages users"])
+def get(resource: str = None) -> None:
+    "get <resource> from the server"
+    if not resource:
+        raise error.ChatMissingArgument
+
+    resp = requests.get(url=URL + "/chat", json={"token": TOKEN, "get": "messages"})
+    resp.raise_for_status()
+    resp = resp.json()
+    if resp is not dict:
+        raise error.ChatException("expected a dict type json")
+
+    messages = resp.get("messages", [])
+
+    if not messages:
+        print("there are no new messages")
+
+    for message in messages:
+        tm = message.get("time", None)
+        if tm is float:
+            tm = time.strftime(tm)
+        else:
+            tm = ""
+
+        print("[" + tm + "]", message.get("user", ""), ">", message.get("content", ""))
+
+
+@chatCommand(name="help")
+def chatHelp(*args: List[str]) -> None:
+    "print this help message"
+    if not args:
+        print("use '/' to invoke commands")
+        print("command list:")
+        for name, command in CHAT_COMMANDS.items():
+            print(f"\t{name:<20}: {command.__doc__}")
+        return
+
+    cmd_name = args[0]
+    cmd = CHAT_COMMANDS.get(cmd_name, None)
+    if cmd is None:
+        print(
+            f'"{cmd_name}" is not a valid command,'
+            "type /help to view list of valid commands"
+        )
+        return
+
+    if len(args) > 1:
+        subcommands = [subcommand for subcommand in args[1:]]
+
+    else:
+        text = getattr(cmd, "_help", cmd.__doc__)
+        print(f"{cmd_name}: {text}")
 
 
 def format_status_code(status: int):
@@ -71,40 +139,38 @@ def enter_chat():
     status = ""
     while True:
         try:
-            msg = input(f"[{status:>3}]{NAME}>")
+            msg = input(f'[{status:>3}]{click.style(NAME, fg="yellow", bold=True)}>')
 
             if not msg:
                 status = ""
                 continue
 
             elif msg[0] == "/":
-                cmd = msg[1:].split(" ")
-
-                if not cmd:
-                    status = ""
-                    continue
-
-                elif cmd[0] in CHAT_COMMANDS:
-                    CHAT_COMMANDS[cmd[0]](cmd[1:])
-                    continue
-
-                else:
-                    print("invalid command")
-                    continue
+                handleChatCommand(msg)
 
             msg = msg.replace("\\n", "\n")
             payload = {"token": TOKEN, "message": msg}
             resp = requests.post(url=URL + "/chat", json=payload)
+            resp.raise_for_status()
             status = format_status_code(resp.status_code)
 
-        except ExitChat as e:
+        except error.ChatExit as e:
             print(e)
             break
 
-        except ChatException as e:
+        except error.ChatException as e:
             print(e)
             status = ""
             continue
+
+        except HTTPError as e:
+            print(e)
+
+            if (resp_json := resp.json()) is not dict:
+                raise error.ChatDisconnect(reason="expected response json to be a dict")
+
+            elif resp_json:
+                print(resp_json)
 
 
 def connectToServer() -> bool:

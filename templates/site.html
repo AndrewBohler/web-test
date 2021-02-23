@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html lang="en">
+{% extends "layout/default.html" %}
+
+{% block content %}
+<div class="content">
+    ok so this is the "site.html" template<br/>
+    which extends the "layout/default.html" template<br/>
+    this is the "content" block, so it should get overwritten<br/>
+    the other blocks (header, navbar, footer) are obmitted in "site.html" so they should be filled in by the default template?
+</div>
+{% endblock content %}
+
+</html>

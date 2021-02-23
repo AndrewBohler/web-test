@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+{% block head %}
+<head>
+    <title>
+        {% if title %}
+        {{ title }}
+        {% else %}
+        missing title
+        {% endif %}
+    </title>
+</head>
+<link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}">
+{% endblock head %}
+
+{% block default_style %}
+<style>
+    .content{
+        width: 100%;
+        height: 80%;
+        text-align: center;
+        font-size: 30px;
+    }
+    footer{
+        color: black;
+        background-color: powderblue;
+        width: 100%;
+        height: 20%
+    }
+</style>
+{% endblock default_style %}
+
+{% block navbar %}
+{# <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='/css/navbar.css') }}"> #}
+<div class="navbar" style="navbar.css">
+    <ul>
+    <li><a href="{{ url_for('index') }}">Index</a></li>
+    <li><a href="{{ url_for('webclient') }}">Chat</a></li>
+    <ul>
+</div>
+{% endblock navbar %}
+
+
+{% block content %}
+<div class="content">
+    No "content" on this page
+</div>
+{% endblock content %}
+
+{% block footer %}
+<footer>
+    This website is currently in developement, currently working on:<br/>
+    <br/>
+    <b>Front-end</b><br/>
+    <ul>
+    <li>navbar</li>
+    <li>sidebar</li>
+    <br/></ul>
+    <b>Back-end</b><br/>
+    <ul>
+    <li>webclient</li>
+    <li>server</li>
+    </ul>
+</footer>
+{% endblock footer %}
+
+</html>

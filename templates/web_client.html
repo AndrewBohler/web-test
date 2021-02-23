@@ -1,0 +1,23 @@
+<html>
+<link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}">
+<head>
+    {% if title %}
+    <title>{{ title }}</title>
+    {% else %}
+    <title>Chat</title>
+    {% endif %}
+</head>
+{% block site %}
+{% endblock %}
+<body>
+    <h1>{{ servername }}!</h1>
+    <p>
+    <div style="background-color:black; height:50%; width:25%; overflow:scroll;">
+        {% for msg in messages %}
+        <span style="color:{{ users[msg.user].color }}; font-weigth:bold;">{{ msg.user }}</span>
+        <span style="color:white;">{{ msg.content }}<br/></span>
+    {% endfor %}
+    </div>
+    </p>
+</body>
+</html>
