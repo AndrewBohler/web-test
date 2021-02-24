@@ -1,34 +1,30 @@
 <!DOCTYPE html>
 <html lang="en">
 
+{% set active_page = 'chat' %}
 {% extends "layout/default.html" %}
 
 {% block content %}
-
-<style>
-    .chat-box{
-        color: white;
-        background-color: black;
-        border-color: black;
-        border-style: solid;
-        border-width: 5px;
-        font-size: 12px;
-        height: 80%;
-        width: 100%;
-    }
-</style>
-
-<div class="content">
-    <div class="chat-box" scroll="auto">
-        <h1>Hello, {{ user.username }}!</h1>
-        <p>
-            {% for msg in messages %}
-            <b style="color:{{ msg.user.color }}">{{ msg.user.username }}</b> {{ msg.content }}
-            {% endfor %}
-        </p>
-    </div>
+<div class="chat-box" scroll="true">
+    <p>
+        {% for msg in messages %}
+        <b style="color:{{ msg.user.color }}">{{ msg.user.username }}</b> {{ msg.content }}<br/>
+        {% endfor %}
+    </p>
 </div>
-
 {% endblock content %}
+
+{% block sidebar %}
+<div class="user-list">
+    <ul>
+        {% for user in users.values() %}
+        <li style="color:#{{ user.color }}">{{ user.username }}</li>
+        {% endfor %}
+    </ul>
+</div>
+{% endblock sidebar %}
+
+{% block footer %}
+{% endblock %}
 
 </html>

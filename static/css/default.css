@@ -1,0 +1,86 @@
+.navbar {
+    position: fixed;
+    top: 0px;
+    left: 0px;
+}
+
+.navbar ul {
+    list-style-type: none;
+    margin: 0;
+    padding: 0px;
+    width: 100%;
+    background-color: #f1f1f1;
+    position: fixed;
+    height: 50px;
+    overflow: auto;
+}
+  
+.navbar li a {
+    display: block;
+    float: left;
+    color: #000;
+    padding: 10px 25px;
+    text-decoration: none;
+    font-size: 25px;
+}
+
+.navbar li a.active {
+    background-color: #4CAF50;
+    color: white;
+}
+
+.navbar li a:hover:not(.active) {
+    background-color: #555;
+    color: white;
+}
+
+.sidebar {
+    position: fixed;
+    top: 0px;
+    left: 0px;
+    background-color: #f1f1f1;
+    border-width: 4px;
+    border-color: black;
+    margin: 50px 0px 0px 0px;
+    width: 200px;
+    height: 100%;
+    overflow: auto;
+}
+
+.user-list {
+    position:absolute;
+    top: 50px;
+    left: 10%;
+    width: 80%;
+    height: 80%;
+    background-color: #7dbfc1;
+    border: black line 4px;
+}
+
+.user-list ul {
+    list-style-type: none;
+}
+
+.user-list li {
+    height: 25px;
+    width: 80%;
+    font-size: 20px;
+    font-style:italic;
+    font-family: "Comic Sans", "Comic Sans MS", "Times New Roman", cursive;
+}
+
+.user-list li:hover {
+    background-color: #555;
+}
+
+.content {
+    position: fixed;
+    top: 50px;
+    left: 200px;
+}
+
+footer {
+    position: absolute;
+    bottom: 0px;
+    left: 200px;
+}

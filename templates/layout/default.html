@@ -9,43 +9,47 @@
         missing title
         {% endif %}
     </title>
-</head>
 <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/default.css') }}">
+</head>
 {% endblock head %}
+<body>
 
-{% block default_style %}
-<style>
-    .content{
-        width: 100%;
-        height: 80%;
-        text-align: center;
-        font-size: 30px;
-    }
-    footer{
-        color: black;
-        background-color: powderblue;
-        width: 100%;
-        height: 20%
-    }
-</style>
-{% endblock default_style %}
-
+<div class="navbar">
 {% block navbar %}
-{# <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='/css/navbar.css') }}"> #}
-<div class="navbar" style="navbar.css">
-    <ul>
-    <li><a href="{{ url_for('index') }}">Index</a></li>
-    <li><a href="{{ url_for('webclient') }}">Chat</a></li>
-    <ul>
-</div>
+
+    {% if not navigation_bar %}
+    {% set navigation_bar = [
+        ('/', 'index', 'Index'),
+        ('/chat/webclient', 'chat', 'Chat'),
+        ('/login', 'login', 'Login')
+    ] -%}
+    {% endif %}
+
+    {% set active_page = active_page -%}
+
+        <ul>
+            {% for href, id, caption in navigation_bar %}
+            <li {% if id == active_page %}class="active"{% endif %}>
+                <a href="{{ href|e }}">{{ caption|e }}</a>
+            </li>
+            {% endfor %}
+        </ul>
 {% endblock navbar %}
-
-
-{% block content %}
-<div class="content">
-    No "content" on this page
 </div>
+
+<div class="content">
+{% block content %}
+    No "content" on this page
 {% endblock content %}
+</div>
+
+
+<div class="sidebar">
+{% block sidebar %}
+
+{% endblock sidebar %}
+</div>
 
 {% block footer %}
 <footer>
@@ -64,4 +68,5 @@
 </footer>
 {% endblock footer %}
 
+</body>
 </html>

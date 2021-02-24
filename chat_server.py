@@ -1,6 +1,7 @@
 from collections import deque
 import flask
 from flask import abort, Flask, jsonify, render_template, request, redirect
+from flask import json
 from flask.globals import session
 from flask_login import LoginManager, login_user, UserMixin, current_user
 from flask_wtf import FlaskForm
@@ -8,6 +9,8 @@ from wtforms import StringField, PasswordField
 import wtforms
 from wtforms.validators import DataRequired
 import time
+
+import random
 
 from typing import Deque, Dict, NamedTuple, Tuple, Type
 
@@ -20,10 +23,11 @@ from typing import Deque, Dict, NamedTuple, Tuple, Type
 
 
 class User(UserMixin):
-    id: int
-    username: str
-    color: str = "cyan"
-    time: float = time.time()
+    def __init__(self, id: int, username: str, color: str = "cccccc"):
+        self.id = id
+        self.username = username
+        self.color = color
+        self.time = time.time()
 
 
 class Message(NamedTuple):
@@ -61,6 +65,24 @@ Token = Type[str]
 
 CHAT: Deque[Message] = deque(maxlen=1000)
 USERS: Dict[int, User] = dict()
+
+# debug
+def default_users_and_messages():
+    for id, color, name in zip(
+        [1, 2, 3, 4, 5],
+        ["ff5555", "55ff55", "77a3d4", "0033aa", "123455"],
+        ["Dave", "Jim", "Sadiq", "Jose", "Richard"],
+    ):
+        USERS[id] = User(id=id, username=name, color=color)
+
+    for _ in range(50):
+        user = USERS[random.randint(1, 5)]
+        time = random.random()
+        message = Message("You wut mate!?!?", user, time)
+        CHAT.append(message)
+
+
+default_users_and_messages()
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = "yoda"
@@ -199,8 +221,6 @@ def webclient():
 @app.route("/index")
 @app.route("/", methods=["POST", "GET"])
 def index():
-    current_time = time.strftime(r"%y-%m-%d %H:%M:%S")
-    timestamp = f"[{current_time}]"
     if request.method == "GET":
         return render_template("site.html", title=__file__)
 
@@ -228,4 +248,3 @@ def main(*args, **kwargs):
 
 if __name__ == "__main__":
     main()
-
