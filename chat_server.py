@@ -5,21 +5,13 @@ from flask import json
 from flask.globals import session
 from flask_login import LoginManager, login_user, UserMixin, current_user
 from flask_wtf import FlaskForm
+import os
 from wtforms import StringField, PasswordField
 import wtforms
 from wtforms.validators import DataRequired
-import time
-
 import random
-
+import time
 from typing import Deque, Dict, NamedTuple, Tuple, Type
-
-
-# @dataclass
-# class User:
-#     name: str = "anon"
-#     time: float = 0.0
-#     color = "red"
 
 
 class User(UserMixin):
@@ -89,7 +81,7 @@ default_users_and_messages()
 
 
 app = Flask(__name__)
-app.config["SECRET_KEY"] = "yoda"
+app.config["SECRET_KEY"] = os.environ["SECRET_KEY"]
 
 login_manager = LoginManager()
 login_manager.init_app(app)
