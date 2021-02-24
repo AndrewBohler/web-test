@@ -9,7 +9,7 @@
 <div class="chat-box">
     <ul>
         {% for msg in messages %}
-        <li><b style="color:{{ msg.user.color }} !important;">{{ msg.user.username }}</b> {{ msg.content }}</li>
+        <li><span style="font-size:12px;">[{{ msg.gmtime|strftime }}]</span> <span style="color:{{ msg.user.color }}; font-weight:bold;">{{ msg.user.username }}</span> {{ msg.content }}</li>
         {% endfor %}
     </ul>
 

@@ -27,13 +27,13 @@ class User(UserMixin):
         self.id = id
         self.username = username
         self.color = color
-        self.time = time.time()
+        self.time = time.gmtime()
 
 
 class Message(NamedTuple):
     content: str
     user: User
-    time: float = time.time()
+    gmtime: time.struct_time = time.gmtime()
 
 
 class LoginForm(FlaskForm):
@@ -56,7 +56,7 @@ UCOUNT = 0
 
 def create_user(form: SignupForm) -> User:
     global UCOUNT
-    user = User(UCOUNT)
+    user = User(UCOUNT, form.username.data)
     UCOUNT += 1
     return user
 
@@ -66,7 +66,7 @@ Token = Type[str]
 CHAT: Deque[Message] = deque(maxlen=1000)
 USERS: Dict[int, User] = dict()
 
-# debug
+# debug ##########################################
 def default_users_and_messages():
     for id, color, name in zip(
         [1, 2, 3, 4, 5],
@@ -75,14 +75,18 @@ def default_users_and_messages():
     ):
         USERS[id] = User(id=id, username=name, color=color)
 
-    for _ in range(50):
-        user = USERS[random.randint(1, 5)]
-        time = random.random()
-        message = Message("You wut mate!?!?", user, time)
+    current_time = time.time()
+    for _ in range(200):
+        user = random.choice(list(USERS.values()))
+        current_time += random.uniform(0.25, 100.0)
+        tm = time.gmtime(current_time)
+        message = Message("You wut mate!?!?", user, tm)
         CHAT.append(message)
 
 
 default_users_and_messages()
+# end debug ######################################
+
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = "yoda"
@@ -113,6 +117,11 @@ def internal_error(e):
         return jsonify(error=str(original_exception)), 500
     else:
         return jsonify(error=str(e)), 500
+
+
+@app.template_filter()
+def strftime(tm):
+    return time.strftime(r"%y-%m-%d %H:%M:%S", tm)
 
 
 @app.route("/login", methods=["GET", "POST"])
@@ -169,7 +178,7 @@ def get_messages():
         for m in list(CHAT)
         if m.time > user.time
     ]
-    user.time = time.time()
+    user.time = time.gmtime()
     return jsonify(messages=messages), 200
 
 
@@ -196,13 +205,14 @@ def chat():
         if not user:
             abort(400, "invalid token")
 
-        CHAT.append(Message(message, user.name, time.time()))
+        CHAT.append(Message(message, user.name, time.gmtime()))
 
         return {}, 204
 
 
 @app.route("/chat/webclient", methods=["POST", "GET"])
 def webclient():
+
     servername = "meh serva bruv"
     if request.method == "GET":
         return render_template(
