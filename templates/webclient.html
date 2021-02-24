@@ -5,13 +5,22 @@
 {% extends "layout/default.html" %}
 
 {% block content %}
-<div class="chat-box" scroll="true">
-    <p>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/chat-box.css') }}">
+<div class="chat-box">
+    <ul>
         {% for msg in messages %}
-        <b style="color:{{ msg.user.color }}">{{ msg.user.username }}</b> {{ msg.content }}<br/>
+        <li><b style="color:{{ msg.user.color }} !important;">{{ msg.user.username }}</b> {{ msg.content }}</li>
         {% endfor %}
-    </p>
+    </ul>
+
 </div>
+<div class="chat-input">
+    <input id="message" label="message" value="enter message">
+</div>
+<div class="chat-submit">
+    <button class="chat-submit">SEND</button>
+</div>
+
 {% endblock content %}
 
 {% block sidebar %}
