@@ -1,56 +1,86 @@
 from collections import deque
+from datetime import datetime
+from enum import unique
 import flask
 from flask import abort, Flask, jsonify, render_template, request, redirect
-from flask import json
 from flask.globals import session
 from flask_login import LoginManager, login_user, UserMixin, current_user
+from flask_sqlalchemy import SQLAlchemy
 from flask_wtf import FlaskForm
 import os
+from sqlalchemy.orm import backref
 from wtforms import StringField, PasswordField
-import wtforms
-from wtforms.validators import DataRequired
+from wtforms.validators import InputRequired, Length, EqualTo
 import random
 import time
 from typing import Deque, Dict, NamedTuple, Tuple, Type
 
 
-class User(UserMixin):
-    def __init__(self, id: int, username: str, color: str = "cccccc"):
-        self.id = id
-        self.username = username
-        self.color = color
-        self.time = time.gmtime()
+app = Flask(__name__)
+app.config["SECRET_KEY"] = os.environ["SECRET_KEY"]
+app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///local/database.db"
+
+db = SQLAlchemy(app)
 
 
-class Message(NamedTuple):
-    content: str
-    user: User
-    gmtime: time.struct_time = time.gmtime()
+class User(UserMixin, db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(20), unique=True, nullable=False)
+    password = db.Column(db.String(80), nullable=False)
+    color = db.Column(db.String(6))
+
+
+class Message(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    content = db.Column(db.String, nullable=False)
+    date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow())
+
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    user = db.relationship("User", backref=db.backref("messages"))
+
+
+db.create_all()
 
 
 class LoginForm(FlaskForm):
-    username = StringField("username")
-    password = PasswordField("password")
+    username = StringField(
+        "username", validators=[InputRequired("username"), Length(min=4, max=20)]
+    )
+    password = PasswordField(
+        "password", validators=[InputRequired("password"), Length(min=8, max=80)]
+    )
 
 
 class SignupForm(FlaskForm):
-    username = StringField("enter username")
-    password = PasswordField("enter password")
-    confirmation = PasswordField("confirm password")
+    username = StringField(
+        "username",
+        validators=[
+            InputRequired("username"),
+            Length(
+                min=4,
+                max=20,
+                message="username length must be between 4 and 20 characters",
+            ),
+        ],
+    )
+    password = PasswordField(
+        "password",
+        validators=[
+            InputRequired("password"),
+            Length(
+                min=8,
+                max=80,
+                message="passord length must be between 8 and 80 characters long",
+            ),
+        ],
+    )
+    confirmation = PasswordField(
+        "password", validators=[EqualTo("password", "confirmation does not match")]
+    )
 
 
 class MessageForm(FlaskForm):
-    message = StringField("message")
-
-
-UCOUNT = 0
-
-
-def create_user(form: SignupForm) -> User:
-    global UCOUNT
-    user = User(UCOUNT, form.username.data)
-    UCOUNT += 1
-    return user
+    message = StringField("message", validators=[InputRequired(), Length(max=1000)])
 
 
 Token = Type[str]
@@ -60,28 +90,75 @@ USERS: Dict[int, User] = dict()
 
 # debug ##########################################
 def default_users_and_messages():
-    for id, color, name in zip(
-        [1, 2, 3, 4, 5],
-        ["ff5555", "55ff55", "77a3d4", "0033aa", "123455"],
-        ["Dave", "Jim", "Sadiq", "Jose", "Richard"],
-    ):
-        USERS[id] = User(id=id, username=name, color=color)
+    # for id, color, name in zip(
+    #     [1, 2, 3, 4, 5],
+    #     ["ff5555", "55ff55", "77a3d4", "0033aa", "123455"],
+    #     ["Dave", "Jim", "Sadiq", "Jose", "Richard"],
+    # ):
+    #     db.session.add(User(id=id, username=name, password="12345678", color=color))
+    # db.session.commit()
 
-    current_time = time.time()
+    # quick and dirty (and bad) sentence generator
+
+    adjectives = """
+    cool good foreign universal persistent insane callous insensitive
+    marginal kind blue green yellow red maroon purple pink orange pleasent
+    """.replace(
+        "\n", " "
+    ).split(
+        " "
+    )
+
+    nouns = """
+    I it stuff sun cost that leaf leaves tree trend key time place
+    seat chair bench wood lisp quest tempest request wench pirate
+    bay lagoon moon Bitcoin Dogecoin Etherium ether void concept sense
+    """.replace(
+        "\n", " "
+    ).split(
+        " "
+    )
+
+    verbs_now = """
+    using becoming running leaving trending meaning unquestioning requesting
+    blazing condeming pleasing leaning removing attacking freaking testing
+    sunning frequenting screening ramming blunting clasping frisking 
+    """.replace(
+        "\n", " "
+    ).split(
+        " "
+    )
+    users = db.session.query(User).all()
     for _ in range(200):
-        user = random.choice(list(USERS.values()))
-        current_time += random.uniform(0.25, 100.0)
-        tm = time.gmtime(current_time)
-        message = Message("You wut mate!?!?", user, tm)
-        CHAT.append(message)
+        user = random.choice(users)
+        sentence = " ".join(
+            [
+                random.choice(nouns),
+                random.choice(
+                    [
+                        "wants to",
+                        "was " + random.choice(verbs_now) + " and",
+                        "is",
+                        "probably will be",
+                    ]
+                ),
+                random.choice(verbs_now),
+                random.choice("with or at and for".split(" ")),
+                random.choice(nouns),
+                random.choice(["", "and " + random.choice(nouns)]),
+                random.choice(
+                    "today yesterday now tomorrow later early before".split(" ")
+                ),
+                random.choice(nouns),
+            ]
+        ).replace("  ", " ")
+        time.sleep(random.randint(1, 3) / 10)
+        message = Message(content=sentence, user=user)
+        db.session.add(message)
+    db.session.commit()
 
 
-default_users_and_messages()
 # end debug ######################################
-
-
-app = Flask(__name__)
-app.config["SECRET_KEY"] = os.environ["SECRET_KEY"]
 
 login_manager = LoginManager()
 login_manager.init_app(app)
@@ -123,15 +200,19 @@ def login():
         current_user = None
         for user in USERS.values():
             if user.username == form.username.data:
+                print("found user!")
                 current_user = user
-                login_user(user)
-                flask.flash("Logged in successfully.")
+                break
 
-        if not current_user:
+        if current_user and login_user(current_user):
+            flask.flash("Logged in successfully.")
+            return flask.redirect(flask.url_for("index"))
+
+        else:
+            print("could not find user...")
             flask.flash("user does not exist")
             return render_template("login.html", form=form), 400
 
-        return flask.redirect(flask.url_for("webclient"))
     return flask.render_template("login.html", form=form, title="login page")
 
 
@@ -166,9 +247,8 @@ def get_messages():
     user = USERS[token]
 
     messages = [
-        {"time": m.time, "user": m.user, "content": m.content}
-        for m in list(CHAT)
-        if m.time > user.time
+        {"time": m.datetime, "user": m.user, "content": m.content}
+        for m in db.session.query(Message).order_by(Message.date).limit(1000).all()
     ]
     user.time = time.gmtime()
     return jsonify(messages=messages), 200
@@ -211,9 +291,9 @@ def webclient():
             "webclient.html",
             title="web client chat",
             servername=servername,
-            messages=CHAT,
-            users=USERS,
-            user=current_user,
+            messages=db.session.query(Message).order_by(Message.date).limit(1000).all(),
+            users=db.session.query(User).all(),
+            # user=current_user,
         )
 
     elif request.method == "POST":

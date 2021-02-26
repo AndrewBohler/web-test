@@ -14,7 +14,17 @@
 </head>
 {% endblock head %}
 <body>
-
+<div class="flashed-messages" height="20%" width="80%">
+{% with messages = get_flashed_messages() %}
+    {% if messages %}
+        {% for message in messages %}
+        <div class="flashed-message" font-size="72">
+            {{ message }}
+        </div>
+        {% endfor %}
+    {% endif %}
+{% endwith %}
+</div>
 <div class="navbar">
 {% block navbar %}
 

@@ -6,12 +6,16 @@
 
 {% block content %}
 <div>
+    <form class="form-login" method="POST" action="/login">
+    {{ form.hidden_tag() }}
     {{ form.username.label }}<br/>
     {{ form.username }}<br/>
     {{ form.password.label }}<br/>
     {{ form.password }}<br/>
     <button type="submit" label="login">login</button>
+    </form>
     <a style="color:blue; font-weight:bold" href="{{ url_for('signup') }}">signup</a>
+
 </div>
 {% endblock content %}
 

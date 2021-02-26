@@ -6,10 +6,11 @@
 
 {% block content %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/chat-box.css') }}">
+<h1>Hello {% if current_user %}{{ current_user.name }}{% else %}Anon{% endif %}!</h1>
 <div class="chat-box">
     <ul>
         {% for msg in messages %}
-        <li><span style="font-size:12px;">[{{ msg.gmtime|strftime }}]</span> <span style="color:{{ msg.user.color }}; font-weight:bold;">{{ msg.user.username }}</span> {{ msg.content }}</li>
+        <li><span style="font-size:12px;">[{{ msg.date }}]</span> <span style="color:#{{ msg.user.color }}; font-weight:bold;">{{ msg.user.username }}</span> {{ msg.content }}</li>
         {% endfor %}
     </ul>
 
@@ -26,7 +27,7 @@
 {% block sidebar %}
 <div class="user-list">
     <ul>
-        {% for user in users.values() %}
+        {% for user in users %}
         <li style="color:#{{ user.color }}">{{ user.username }}</li>
         {% endfor %}
     </ul>
