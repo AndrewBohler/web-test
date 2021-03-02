@@ -30,11 +30,7 @@ from wtforms.widgets.html5 import EmailInput, URLInput
 colorama.init()
 
 app = Flask(__name__)
-app.config["SECRET_KEY"] = "this is ma secret yo"
-app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///local/test/database.db"
-app.config["SQLALCHEMY_TRACK_NOTIFICATIONS"] = True
-app.config["MAX_CONTENT_LENGTH"] = 100 * 1024
-
+app.config.from_pyfile("config.py")
 db = SQLAlchemy(app)
 login_manager = LoginManager(app)
 login_manager.login_view = "login"
