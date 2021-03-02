@@ -1,6 +1,9 @@
 # local folder
 local/*
 
+# user uploaded
+static/avatars/*
+
 # vscode
 *.code-workspace
 

@@ -1,0 +1,165 @@
+body {
+    font-size: 25px;
+    color: black;
+    background-color: white;
+    overflow-x: hidden;
+    overflow-y: auto;
+}
+
+.navbar {
+    position: fixed;
+    top: 0px;
+    left: 0px;
+    height: 44px;
+    width: 100%;
+    z-index: 1;
+    background-color: slategray;
+    color: peachpuff;
+    border: 3px solid lightgrey;
+}
+
+.sidebar {
+    position:fixed;
+    left: 0px;
+    top: 55px;
+    bottom: 0px;
+    width: 196px;
+    background-color: slategray;
+    color: peachpuff;
+    border: 3px solid lightgrey;
+    z-index: 1;
+}
+
+.page-middle {
+    position: absolute;
+    top: 55px;
+    right: 0px;         
+    bottom: 0px;
+    left: 205px;
+
+    width: 80%;
+    background-color: slategray;
+    border: 3px lightgrey solid;
+    overflow: auto;
+}
+
+.icon {
+    display: inline;
+    position: absolute;
+    width: 40px;
+    height: 40px;
+    margin: 5px;
+    top: 0px;
+    left: 0px;
+}
+
+.navbar ul {
+    list-style: none;
+    display: inline;
+    position: absolute;
+    margin: 0px;
+    top: 0px;
+    left: 50px;
+}
+
+.navbar li {
+    position: relative;
+    display: inline;
+    float: left;
+    font-size: 30px;
+    height: 34px;
+    padding: 5px;
+}
+
+.navbar li:hover {
+    background-color: darkgray;
+}
+
+.navbar li.active a {
+    color: white;
+    background-color: black;
+}
+
+.navbar a {
+    text-decoration: none;
+    text-transform: none;
+}
+
+.flashed-messages {
+    position: relative;
+    left: 5%;
+    width: 90%;
+}
+
+.flashed-message-box {
+    color: black;
+    background-color: lightgrey;
+    font-size: 30px;
+    padding: 5px;
+    margin: 5px;
+    border: 3px solid grey;
+    text-align: center;
+}
+
+.flashed-message-box input[type="submit"] {
+    position: relative;
+    float: right;
+    top: -3px;
+    width: 30px;
+    height: 30px;
+    padding: 5px;
+    margin: 5px;
+    border: 3px solid grey;
+}
+
+.message-success {
+    background-color: lightgreen;
+}
+
+.message-error {
+    background-color: pink;
+}
+
+.content {
+    position: relative;
+    top: 10px;
+    min-width: 400px;
+    width: 100%;
+}
+
+form {
+    position: relative;
+    width: 40%;
+    left: 30%;
+    padding: 20px;
+    min-width: 100px;
+    font-size: 40px;
+    text-align: center;
+    color: black;
+}
+
+form label {
+    height: 30px;
+}
+
+form input {
+    position: relative;
+    float: center;
+    width: 90%;
+    font-size: 25px;
+    height: 30px;
+    background-color: darkcyan;
+    color: lightblue;
+}
+
+form input .submit {
+    max-width: 80px;
+}
+
+footer {
+    position: absolute;
+    bottom: 0px;
+    height: 200px;
+    width: 100%;
+    font-size: 15px;
+}

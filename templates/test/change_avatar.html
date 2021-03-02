@@ -1,0 +1,10 @@
+{% extends "layout/test.html" %}
+
+{% block content %}
+    <form id="change_avatar" method="POST" enctype="multipart/form-data">
+        {{ form.csrf_token }}<br/>
+        {{ form.avatar() }}<br/>
+        Note: file size should be less than 100 KB
+        <input class="submit" type="submit" action="{{ url_for('change_avatar') }}" value="Save">
+    </form>
+{% endblock content %}

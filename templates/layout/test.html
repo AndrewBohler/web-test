@@ -1,0 +1,115 @@
+{% block template %}
+<!DOCTYPE html>
+<html lang="en">
+
+{% block header %}
+    <head>
+
+        <title>
+        {% block title %}
+        {% if title %}{{ title }}{% else %}{% endif %}
+        {% endblock title %}
+        </title>
+
+        {% block style %}
+        <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}">
+        <link rel="stylesheet" href="{{ url_for('static', filename='css/test.css') }}">
+        {% endblock style %}
+
+    </head>
+{% endblock header %}
+
+
+<body>
+
+{% block navbar %}
+<div class="navbar">
+    <a href="{{ url_for('index') }}"><div class="icon" display="inline">icon</div></a>
+    <ul>
+        {% if title=="index" %}<li class="active">
+        {% else %}<li>
+        {% endif %}
+                <a href="{{ url_for('index') }}">Index</a>
+            </li>
+        {% if title=="dashboard" %}<li class="active">
+        {% else %}<li>
+        {% endif %}
+                <a href="{{ url_for('dashboard') }}">Dashboard</a>
+            </li>
+        {% if current_user.is_authenticated %}
+            {% if title=="logout" %}<li class="active">
+            {% else %}<li>
+            {% endif %}
+                    <a href="{{ url_for('logout') }}">Logout</a>
+                </li>
+        {% else %}
+            {% if title=="signup" %}<li class="active">
+            {% else %}<li>
+            {% endif %}
+                    <a href="{{ url_for('signup') }}">Signup</a>
+                </li>
+            {% if title=="login" %}<li class="active">
+            {% else %}<li>
+            {% endif %}
+                    <a href="{{ url_for('login') }}">Login</a>
+                </li>
+        {% endif %}
+    </ul>
+</div>
+{% endblock navbar %}
+
+{% block sidebar %}
+    <div class="sidebar">
+        <ul>
+            <li>Lorum Ipsum</li>
+            <li>Lorum Ipsum</li>
+            <li>Lorum Ipsum</li>
+            <li>Lorum Ipsum</li>
+            <li>Lorum Ipsum</li>
+            <li>Lorum Ipsum</li>
+            <li>Lorum Ipsum</li>
+        </ul>
+    </div>
+{% endblock sidebar %}
+
+<div class="page-middle">
+
+{% block flashed_messages %}
+{% with messages = get_flashed_messages(with_categories=true) %}
+    <div class="flashed-messages">
+    {% if messages %}
+        {% for category, message in messages %}
+            <div id="flashed-message-{{ loop.index }}" class="flashed-message-box message-{{ category }}">
+            {{ message }}<input type="submit" onclick="hideFlashedMessage(this.parentNode.id)" value="X">
+            </div>
+        {% endfor %}
+        <script>
+            function hideFlashedMessage(id) {
+                var fmsg = document.getElementById(id);
+                fmsg.style.display = "none";
+            }
+        </script>
+    {% endif %}
+    </div>
+{% endwith %}
+{% endblock flashed_messages %}
+
+    
+
+    <div class="content">
+    {% block content %}
+
+            <h1>This is the body of the webpage</h1>
+
+    {% endblock content %}
+    </div>
+
+</div>
+
+</body>
+
+{% block footer %}
+    {# <footer>This is the footer...</footer> #}
+{% endblock footer %}
+</html>
+{% endblock template%}
