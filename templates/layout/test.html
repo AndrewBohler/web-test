@@ -24,36 +24,36 @@
 
 {% block navbar %}
 <div class="navbar">
-    <a href="{{ url_for('index') }}"><div class="icon" display="inline">icon</div></a>
+    <a href="{{ url_for('index') }}"><div class="icon" display="inline"><img src="{{ url_for('static', filename='favicon.ico') }}"></div></a>
     <ul>
-        {% if title=="index" %}<li class="active">
+        {% if title=="index" %}<li active="true">
         {% else %}<li>
         {% endif %}
                 <a href="{{ url_for('index') }}">Index</a>
             </li>
-        {% if title=="dashboard" %}<li class="active">
+        {% if title=="dashboard" %}<li active="true">
         {% else %}<li>
         {% endif %}
                 <a href="{{ url_for('dashboard') }}">Dashboard</a>
             </li>
-        {% if title=="chat" %}<li class="active">
+        {% if title=="chat" %}<li active="true">
         {% else %}<li>
         {% endif %}
                 <a href="{{ url_for('chat') }}">Chat</a>
             </li>
         {% if current_user.is_authenticated %}
-            {% if title=="logout" %}<li class="active">
+            {% if title=="logout" %}<li active="true">
             {% else %}<li>
             {% endif %}
                     <a href="{{ url_for('logout') }}">Logout</a>
                 </li>
         {% else %}
-            {% if title=="signup" %}<li class="active">
+            {% if title=="signup" %}<li active="true">
             {% else %}<li>
             {% endif %}
                     <a href="{{ url_for('signup') }}">Signup</a>
                 </li>
-            {% if title=="login" %}<li class="active">
+            {% if title=="login" %}<li active="true">
             {% else %}<li>
             {% endif %}
                     <a href="{{ url_for('login') }}">Login</a>

@@ -171,7 +171,7 @@ def flash_form_errors(form: FlaskForm):
 
 @app.route("/")
 def index():
-    return render_template("test/index.html")
+    return render_template("test/index.html", title="Index")
 
 
 @app.route("/login", methods=["GET", "POST"])
@@ -190,7 +190,7 @@ def login():
     elif form.is_submitted():
         flash_form_errors(form)
 
-    return render_template("test/login.html", form=form)
+    return render_template("test/login.html", title="Login", form=form)
 
 
 @app.route("/logout")
@@ -219,7 +219,7 @@ def signup():
     elif form.is_submitted():
         flash_form_errors(form)
 
-    return render_template("test/signup.html", form=form)
+    return render_template("test/signup.html", title="Signup", form=form)
 
 
 @app.route("/change_avatar", methods=["POST", "GET"])
@@ -234,10 +234,10 @@ def change_avatar():
 
         db.session.commit()
         flash("changed avatar", "success")
+        redirect(url_for("dashboard"))
 
     elif form.is_submitted():
         flash_form_errors(form)
-        return render_template("test/change_avatar.html", form=form), 400
 
     return render_template("test/change_avatar.html", form=form)
 
@@ -258,6 +258,7 @@ def chat():
         )
         db.session.add(message)
         db.session.commit()
+        redirect(url_for("chat"))
 
     messages = Message.query.order_by("datetime").limit(100).all()
     return render_template("test/chat.html", title="chat", form=form, messages=messages)

@@ -18,6 +18,17 @@ body {
     border: 3px solid lightgrey;
 }
 
+.icon img {
+    display: inline;
+    position: absolute;
+    width: 35px;
+    height: 35px;
+    margin: 5px;
+    padding: 0px;
+    top: 0px;
+    left: 0px;
+}
+
 .sidebar {
     position:fixed;
     left: 0px;
@@ -43,16 +54,6 @@ body {
     overflow: auto;
 }
 
-.icon {
-    display: inline;
-    position: absolute;
-    width: 40px;
-    height: 40px;
-    margin: 5px;
-    top: 0px;
-    left: 0px;
-}
-
 .navbar ul {
     list-style: none;
     display: inline;
@@ -75,14 +76,15 @@ body {
     background-color: darkgray;
 }
 
-.navbar li.active a {
-    color: white;
-    background-color: black;
-}
-
 .navbar a {
+    color: peachpuff;
     text-decoration: none;
     text-transform: none;
+}
+
+.navbar.active {
+    color: white;
+    background-color: burlywood;
 }
 
 .flashed-messages {
