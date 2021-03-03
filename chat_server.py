@@ -18,8 +18,8 @@ from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
 from wtforms.widgets.html5 import EmailInput, URLInput
 
-import forms
-from sql_models import db, User, Message
+from . import forms
+from .sql_models import db, User, Message
 
 colorama.init()
 

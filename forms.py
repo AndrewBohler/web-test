@@ -1,5 +1,4 @@
 from wtforms.validators import ValidationError
-from chat_server import db
 from typing import Optional, Union
 from flask_wtf import FlaskForm
 from flask_wtf.file import FileAllowed, FileField, FileRequired
@@ -8,7 +7,7 @@ from wtforms.fields.simple import TextField
 from wtforms.validators import InputRequired, Length, EqualTo, ValidationError
 from wtforms.fields.html5 import EmailField
 
-from sql_models import User
+from .sql_models import db, User
 
 
 class CustomValidator:
