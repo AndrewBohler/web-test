@@ -36,6 +36,11 @@
         {% endif %}
                 <a href="{{ url_for('dashboard') }}">Dashboard</a>
             </li>
+        {% if title=="chat" %}<li class="active">
+        {% else %}<li>
+        {% endif %}
+                <a href="{{ url_for('chat') }}">Chat</a>
+            </li>
         {% if current_user.is_authenticated %}
             {% if title=="logout" %}<li class="active">
             {% else %}<li>

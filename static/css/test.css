@@ -156,6 +156,19 @@ form input .submit {
     max-width: 80px;
 }
 
+.chat-box {
+    position: relative;
+    left: 10%;
+    top: 10%;
+    width: 80%;
+    height: 10em;
+    padding: 10px;
+    font-size: 14pt;
+    background-color: cadetblue;
+    color: peachpuff;
+    overflow-y: scroll;
+}
+
 footer {
     position: absolute;
     bottom: 0px;

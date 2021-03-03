@@ -1,4 +1,4 @@
-from enum import unique
+from datetime import datetime
 from typing import Callable, Optional, Union
 from flask import Flask, render_template, redirect, url_for
 from flask.globals import request, session
@@ -19,6 +19,7 @@ import os
 from werkzeug.utils import secure_filename
 from wtforms import StringField, PasswordField, BooleanField
 from wtforms import validators
+from wtforms.fields.simple import TextAreaField, TextField
 from wtforms.validators import InputRequired, Length, EqualTo, ValidationError
 from wtforms.fields.html5 import EmailField, URLField
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -49,6 +50,16 @@ class User(UserMixin, db.Model):
 
     def __repr__(self):
         return f'{colorama.Back.LIGHTCYAN_EX}<{Fore.MAGENTA}user: {Fore.RED}{self.id} {Fore.YELLOW}user={Fore.GREEN}"{self.username}"{Fore.RESET}>{colorama.Back.RESET}'
+
+
+class Message(db.Model):
+    __tablename__ = "messages"
+    id = db.Column(db.Integer, primary_key=True)
+    text = db.Column(db.Text)
+    datetime = db.Column(db.DateTime, nullable=False)
+
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"))
+    user = db.relationship("User", backref="messages")
 
 
 db.create_all()
@@ -142,6 +153,16 @@ class AvatarForm(FlaskForm):
     )
 
 
+class ChatForm(FlaskForm):
+    message = TextField(
+        "message",
+        validators=[
+            InputRequired(),
+            Length(min=1, max=2000, message="length cannot exceed 2000 characters"),
+        ],
+    )
+
+
 def flash_form_errors(form: FlaskForm):
     for field, errors in form.errors.items():
         for error in errors:
@@ -193,7 +214,7 @@ def signup():
         db.session.commit()
         flash("User created!", "success")
         session["user_id"] = new_user.id
-        return redirect(url_for("login"))
+        return redirect(url_for("login")), 300
 
     elif form.is_submitted():
         flash_form_errors(form)
@@ -225,6 +246,21 @@ def change_avatar():
 @login_required
 def dashboard():
     return render_template("test/dashboard.html")
+
+
+@app.route("/chat", methods=["POST", "GET"])
+@login_required
+def chat():
+    form = ChatForm()
+    if form.validate_on_submit():
+        message = Message(
+            text=form.message.data, datetime=datetime.utcnow(), user_id=current_user.id
+        )
+        db.session.add(message)
+        db.session.commit()
+
+    messages = Message.query.order_by("datetime").limit(100).all()
+    return render_template("test/chat.html", title="chat", form=form, messages=messages)
 
 
 if __name__ == "__main__":
