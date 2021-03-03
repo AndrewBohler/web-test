@@ -4,11 +4,11 @@
 
 {% block content %}
 <form id="signup" method="POST" action="/signup">
-    {{ form.csrf_token }}
-    {{ form.email.label }} {{ form.email }}<br/>
-    {{ form.username.label }} {{ form.username }}<br/>
-    {{ form.password.label }} {{ form.password }}<br/>
-    {{ form.confirm.label }} {{ form.confirm }}
+    {{ form.csrf_token() }}
+    {{ form.email.label() }} {{ form.email() }}<br/>
+    {{ form.username.label() }} {{ form.username() }}<br/>
+    {{ form.password.label() }} {{ form.password() }}<br/>
+    {{ form.confirm.label() }} {{ form.confirm() }}
 
     <input id="submit" type="submit" value="signup">
 </form>

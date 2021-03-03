@@ -14,7 +14,7 @@
     {% endfor %}
 </div>
 <div>
-<form id="signup" method="POST" action="/chat">
+<form id="signup" method="POST" action="/chat/post">
     {{ form.csrf_token }}
     {{ form.message }}<input id="submit" type="submit" value="send">
 </form>

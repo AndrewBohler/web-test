@@ -129,16 +129,21 @@ def dashboard():
 @login_required
 def chat():
     form = forms.Chat()
+    messages = Message.query.order_by("datetime").limit(100).all()
+    return render_template("test/chat.html", title="chat", form=form, messages=messages)
+
+
+@app.route("/chat/post", methods=["POST"])
+def chat_post():
+    form = forms.Chat()
     if form.validate_on_submit():
         message = Message(
             text=form.message.data, datetime=datetime.utcnow(), user_id=current_user.id
         )
         db.session.add(message)
         db.session.commit()
-        redirect(url_for("chat"))
-
-    messages = Message.query.order_by("datetime").limit(100).all()
-    return render_template("test/chat.html", title="chat", form=form, messages=messages)
+    flash_form_errors(form)
+    return redirect(url_for("chat"))
 
 
 if __name__ == "__main__":
