@@ -34,6 +34,8 @@ login_manager.login_view = "login"
 DEBUG = os.environ.get("FLASK_DEBUG", False)
 print("DEBUG:", DEBUG)
 
+users_online = dict()
+
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -59,6 +61,7 @@ def login():
         if user and check_password_hash(user.password, form.password.data):
             login_user(user)
             flash("Login Success!", "success")
+            users_online[user.username] = user
             return redirect(url_for("dashboard"))
 
         else:
@@ -73,6 +76,7 @@ def login():
 @app.route("/logout")
 @login_required
 def logout():
+    del users_online[current_user.username]
     logout_user()
     return render_template("/test/logout.html")
 
@@ -130,7 +134,15 @@ def dashboard():
 def chat():
     form = forms.Chat()
     messages = Message.query.order_by("datetime").limit(100).all()
-    return render_template("test/chat.html", title="chat", form=form, messages=messages)
+    return render_template(
+        "test/chat.html",
+        title="chat",
+        form=form,
+        messages=messages,
+        online_users=[
+            (username, str(user.id)) for username, user in users_online.items()
+        ],
+    )
 
 
 @app.route("/chat/post", methods=["POST"])
@@ -144,6 +156,17 @@ def chat_post():
         db.session.commit()
     flash_form_errors(form)
     return redirect(url_for("chat"))
+
+
+@app.route("/user/<user_id>/")
+def user_avatar(user_id):
+    user = User.query.filter(User.id == user_id).first()
+    if not user:
+        title = "invalid user"
+    else:
+        title = user.username
+
+    return render_template("user_profile.html", title=title, user=user)
 
 
 if __name__ == "__main__":

@@ -1,0 +1,16 @@
+{% extends "layout/test.html" %}
+
+{% block content %}
+{% if user %}
+<h1>{{ user.username }}</h1>
+    {% if user.avatar_filename %}
+    <img src="{{ url_for('static', filename='avatars/' + user.avatar_filename) }}">
+    {% else %}
+    <img src="{{ url_for('static', filename='avatars/default.jpg') }}">
+    {% endif %}
+{% else %}
+<h1>User does not exist!</h1>
+{% endif %}
+
+
+{% endblock content %}

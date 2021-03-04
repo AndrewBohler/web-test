@@ -10,8 +10,8 @@ body {
     position: fixed;
     top: 0px;
     left: 0px;
+    right: 0px;
     height: 44px;
-    width: 100%;
     z-index: 1;
     background-color: slategray;
     color: peachpuff;
@@ -24,7 +24,6 @@ body {
     width: 35px;
     height: 35px;
     margin: 5px;
-    padding: 0px;
     top: 0px;
     left: 0px;
 }
@@ -39,6 +38,20 @@ body {
     color: peachpuff;
     border: 3px solid lightgrey;
     z-index: 1;
+}
+
+.sidebar li {
+    list-style: none;
+}
+
+.sidebar li:hover {
+    background-color: darkgray;
+}
+
+.sidebar a {
+    color: peachpuff;
+    text-decoration: none;
+    text-transform: none;
 }
 
 .page-middle {

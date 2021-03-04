@@ -1,5 +1,15 @@
 {% extends "layout/test.html" %}
 
+{% block sidebar %}
+    <div class="sidebar">
+        <ul>
+            {% for username, user_id in online_users %}
+            <li><a href="{{ '/user/' + user_id + '/' }}">{{ username }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+{% endblock sidebar %}
+
 {% block content %}
 <div class="chat-box">
     {% for message in messages %}
