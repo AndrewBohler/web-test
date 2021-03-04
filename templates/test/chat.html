@@ -4,7 +4,7 @@
     <div class="sidebar">
         <ul>
             {% for username, user_id in online_users %}
-            <li><a href="{{ '/user/' + user_id + '/' }}">{{ username }}</li>
+            <li><a href="{{ '/user/' + user_id + '/' }}">{{ username }}</a></li>
             {% endfor %}
         </ul>
     </div>
