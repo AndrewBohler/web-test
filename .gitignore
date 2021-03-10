@@ -1,6 +1,11 @@
 # local folder
 local/*
 
+# node stuff
+node_modules/*
+package-lock.json
+package.json
+
 # user uploaded
 static/avatars/*
 

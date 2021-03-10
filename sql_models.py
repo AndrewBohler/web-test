@@ -15,7 +15,7 @@ class User(UserMixin, db.Model):
     avatar_filename = db.Column(db.String(30))
 
     def __repr__(self):
-        return f'{Back.LIGHTCYAN_EX}<{Fore.MAGENTA}user: {Fore.RED}{self.id} {Fore.YELLOW}user={Fore.GREEN}"{self.username}"{Fore.RESET}>{Back.RESET}'
+        return f'<User {self.id} "{self.username}">'
 
 
 class Message(db.Model):

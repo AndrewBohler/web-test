@@ -1,18 +1,22 @@
+from functools import singledispatchmethod
 import colorama
+from dataclasses import dataclass
 from datetime import datetime
-from typing import Callable, Optional, Union
+from typing import Callable, List, Optional, Type, Union
 from flask import Flask, render_template, redirect, url_for
 from flask.globals import request, session
 from flask.helpers import flash
 from flask_login import (
     LoginManager,
-    UserMixin,
     current_user,
     login_required,
     login_user,
     logout_user,
 )
+from flask_socketio import SocketIO, emit, disconnect, join_room, send
 from flask_wtf import FlaskForm
+from functools import wraps
+import json
 import os
 from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -31,10 +35,71 @@ db.init_app(app)
 login_manager = LoginManager(app)
 login_manager.login_view = "login"
 
+socketio = SocketIO(app)
+
 DEBUG = os.environ.get("FLASK_DEBUG", False)
 print("DEBUG:", DEBUG)
 
-users_online = dict()
+
+@dataclass
+class OnlineUserState:
+    _users_by_name = dict()
+    _users_by_id = dict()
+    _last_request_time = dict()
+
+    def add_user(self, user: User):
+        self._users_by_id[user.id] = user
+        self._users_by_name[user.username] = user
+        self._last_request_time[user.id] = datetime.utcnow()
+
+    def remove_user(self, user: User):
+        del self._users_by_id[user.id]
+        del self._users_by_name[user.username]
+        del self._last_request_time[user.id]
+
+    @singledispatchmethod
+    def lookup_user(self, user) -> User:
+        raise TypeError(user)
+
+    @lookup_user.register(int)
+    def _lookup_by_id(self, user: int) -> User:
+        return self._users_by_id.get(id, None)
+
+    @lookup_user.register(str)
+    def _lookup_by_name(self, user: str) -> User:
+        return self._users_by_name.get(user, None)
+
+    @singledispatchmethod
+    def update_request_time(self, user, time=datetime.utcnow()) -> None:
+        raise TypeError(user)
+
+    @update_request_time.register
+    def _(self, user: int, time=datetime.utcnow()) -> None:
+        self._last_request_time[user] = time
+
+    @update_request_time.register
+    def _(self, user: str, time=datetime.utcnow()) -> None:
+        user_id = self._by_username[user].id
+        self._last_request_time[user_id] = time
+
+    @singledispatchmethod
+    def get_last_request_time(self, user) -> datetime:
+        raise TypeError(user)
+
+    @get_last_request_time.register
+    def _(self, user: int) -> datetime:
+        return self._last_request_time[user]
+
+    @get_last_request_time.register
+    def _(self, user: str) -> datetime:
+        user_id = self._users_by_name[user].id
+        return self._last_request_time[user_id]
+
+    def get_users_by_name(self) -> List[User]:
+        return self._users_by_name.values()
+
+
+onlineUsers = OnlineUserState()
 
 
 @login_manager.user_loader
@@ -46,6 +111,62 @@ def flash_form_errors(form: FlaskForm):
     for field, errors in form.errors.items():
         for error in errors:
             flash(f"{field}: {error}")
+
+
+def authentication_required(socket_func):
+    @wraps(socket_func)
+    def wrapper(*args, **kwargs):
+        if not current_user.is_authenticated:
+            disconnect()
+        else:
+            return socket_func(*args, **kwargs)
+
+    return wrapper
+
+
+@socketio.on("connect")
+@authentication_required
+def handle_connection():
+    join_room("chat")
+    emit("message", "you have connected", broadcast=False, room="chat")
+    emit(
+        "message",
+        f"{current_user.username} has connected!",
+        broadcast=True,
+        include_self=False,
+    )
+
+
+@socketio.on("chat-message")
+@authentication_required
+def handle_message(data):
+    text = data["text"]
+    room = "chat"
+    message = Message(text=text, datetime=datetime.utcnow(), user_id=current_user.id)
+    db.session.add(message)
+    db.session.commit()
+    payload = {
+        "time": datetime.strftime(message.datetime, r"%H:%M:%S"),
+        "username": current_user.username,
+        "text": text,
+    }
+    # payload = json.dumps(payload)
+    emit("chat-message", payload, broadcast=True, include_self=True, room=room)
+
+
+@socketio.on("disconnect")
+def handle_disconnect():
+    emit("message", "you have been disconnected", broadcast=False)
+    emit(
+        "message",
+        f"{current_user.username} has disconnected",
+        room="chat",
+        broadcast=True,
+    )
+    disconnect()
+
+
+app.add_template_filter(datetime.strftime)
 
 
 @app.route("/")
@@ -60,8 +181,8 @@ def login():
         user = User.query.filter_by(username=form.username.data).first()
         if user and check_password_hash(user.password, form.password.data):
             login_user(user)
+            onlineUsers.add_user(user)
             flash("Login Success!", "success")
-            users_online[user.username] = user
             return redirect(url_for("dashboard"))
 
         else:
@@ -76,7 +197,7 @@ def login():
 @app.route("/logout")
 @login_required
 def logout():
-    del users_online[current_user.username]
+    onlineUsers.remove_user(current_user)
     logout_user()
     return render_template("/test/logout.html")
 
@@ -140,9 +261,27 @@ def chat():
         form=form,
         messages=messages,
         online_users=[
-            (username, str(user.id)) for username, user in users_online.items()
+            (user.username, str(user.id)) for user in onlineUsers.get_users_by_name()
         ],
     )
+
+
+@app.route("/chat/messages")
+@login_required
+def chat_messages():
+    last_seen = onlineUsers.get_last_request_time(current_user.id)
+    messages = (
+        Message.query.order_by(Message.datetime)
+        .filter(Message.datetime > last_seen)
+        .all()
+    )
+    resp = json.dumps(
+        [
+            (datetime.strftime(msg.datetime, r"%H:%M:%S"), msg.user.username, msg.text)
+            for msg in messages
+        ]
+    )
+    return resp
 
 
 @app.route("/chat/post", methods=["POST"])
@@ -170,5 +309,5 @@ def user_avatar(user_id):
 
 
 if __name__ == "__main__":
-    app.run(debug=DEBUG, use_evalex=False)
+    socketio.run(debug=DEBUG, use_evalex=False)
 
