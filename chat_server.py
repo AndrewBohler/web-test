@@ -261,7 +261,7 @@ def dashboard():
 @login_required
 def chat():
     form = forms.Chat()
-    messages = Message.query.order_by("datetime").limit(100).all()
+    messages = Message.query.order_by(Message.datetime.desc()).limit(100).all()
     return render_template(
         "test/chat.html",
         title="chat",
