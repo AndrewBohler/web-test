@@ -188,7 +188,19 @@ form input .submit {
     overflow-y: scroll;
 }
 
-input {
+.timestamp {
+    position: relative;
+    bottom: 2pt; /* somewhat verticle align middle */
+    font-size: 8pt;
+    color: darkgray;
+    vertical-align:middle;
+}
+
+.username {
+    color:orange;
+}
+
+input#chat-message {
     position: relative;
     left: 10%;
     width: 80%;

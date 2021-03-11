@@ -27,6 +27,13 @@ from .sql_models import db, User, Message
 
 colorama.init()
 
+# we'll need the public ip adress of the server for chat websocket
+# AWS EC2 on linux do:
+# export FLASK_PUBLIC_IP=$(curl https://checkip.amazonaws.com/)
+PUBLIC_IP = os.environ.get("FLASK_PUBLIC_IP", "localhost")
+PORT = os.environ.get("FLASK_PORT", "5000")
+HTML_BASE = f"{'https://' if PUBLIC_IP != 'localhost' else ''}{PUBLIC_IP}{PORT}/"
+
 app = Flask(__name__)
 app.config.from_pyfile("config.py")
 
@@ -258,6 +265,7 @@ def chat():
     return render_template(
         "test/chat.html",
         title="chat",
+        base=HTML_BASE,
         form=form,
         messages=messages,
         online_users=[

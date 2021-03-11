@@ -1,8 +1,8 @@
 {% extends "layout/test.html" %}
 
 {% block includes %}
+<base href="{{ base }}" target="_self">
 <script src="https://cdn.jsdelivr.net/npm/socket.io-client@3.1.1/dist/socket.io.min.js" crossorigin="anonymous"></script>
-<script src="{{ url_for('static', filename='js/web_socket.js') }}" type="module"></script>
 {% endblock includes %}
 
 {% block sidebar %}
@@ -18,13 +18,14 @@
 {% block content %}
 <div id="chat-box" class="chat-box">
     {% for message in messages %}
-    [{{ message.datetime | strftime("%H:%M:%S") }}] 
-    {{ message.user.username }}: 
+    <span class="timestamp">[{{ message.datetime | strftime("%H:%M:%S") }}]</span> 
+    <span class="username">{{ message.user.username }}</span> 
     {{ message.text }}<br/>
     {% endfor %}
 </div>
 <div>
 <input id="chat-message" type="text">
 </div>
+<script src="{{ url_for('static', filename='js/web_socket.js') }}" type="module"></script>
 
 {% endblock content %}
