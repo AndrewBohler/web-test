@@ -6,25 +6,19 @@
 {% endblock includes %}
 
 {% block sidebar %}
-    <div class="sidebar">
-        <ul>
-            {% for username, user_id in online_users %}
-            <li><a href="{{ '/user/' + user_id + '/' }}">{{ username }}</a></li>
-            {% endfor %}
-        </ul>
+    <div id = "sidebar" class="sidebar">
+        <div id="user-list" class="sidebar">
+        </div>
     </div>
 {% endblock sidebar %}
 
 {% block content %}
 <div id="chat-box" class="chat-box">
-    {% for message in messages %}
-    <span class="timestamp">[{{ message.datetime | strftime("%H:%M:%S") }}]</span> 
-    <span class="username">{{ message.user.username }}</span> 
-    {{ message.text }}<br/>
-    {% endfor %}
+
 </div>
+
 <div>
-<input id="chat-message" type="text">
+    <input id="chat-message" type="text">
 </div>
 <script src="{{ url_for('static', filename='js/web_socket.js') }}" type="module"></script>
 

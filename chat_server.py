@@ -2,7 +2,7 @@ from functools import singledispatchmethod
 import colorama
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Callable, List, Optional, Type, Union
+from typing import Callable, Dict, List, Optional, Type, Union
 from flask import Flask, render_template, redirect, url_for
 from flask.globals import request, session
 from flask.helpers import flash
@@ -30,9 +30,9 @@ colorama.init()
 # we'll need the public ip adress of the server for chat websocket
 # AWS EC2 on linux do:
 # export FLASK_PUBLIC_IP=$(curl https://checkip.amazonaws.com/)
-PUBLIC_IP = os.environ.get("FLASK_PUBLIC_IP", "localhost")
-PORT = os.environ.get("FLASK_PORT", "5000")
-HTML_BASE = f"{'https://' if PUBLIC_IP != 'localhost' else ''}{PUBLIC_IP}{PORT}/"
+# PUBLIC_IP = os.environ.get("FLASK_PUBLIC_IP", "localhost")
+# PORT = os.environ.get("FLASK_PORT", "5000")
+# HTML_BASE = f"{'https://' if PUBLIC_IP != 'localhost' else ''}{PUBLIC_IP}:{PORT}/"
 
 app = Flask(__name__)
 app.config.from_pyfile("config.py")
@@ -44,36 +44,80 @@ login_manager.login_view = "login"
 
 socketio = SocketIO(app)
 
-DEBUG = os.environ.get("FLASK_DEBUG", False)
+DEBUG = bool(os.environ.get("FLASK_DEBUG", False))
 print("DEBUG:", DEBUG)
 
 
 @dataclass
-class OnlineUserState:
-    _users_by_name = dict()
-    _users_by_id = dict()
-    _last_request_time = dict()
+class PublicUser:
+    "front facing user class which doesn't expose private info"
 
-    def add_user(self, user: User):
+    id: int
+    username: str
+    online: bool = False
+
+    @classmethod
+    def from_db(cls, db_user):
+        return cls(id=db_user.id, username=db_user.username)
+
+
+class PublicUserManager:
+    "manages user state such as online status"
+
+    def __init__(self):
+        self._users_by_name: Dict[str, PublicUser] = dict()
+        self._users_by_id: Dict[int, PublicUser] = dict()
+        self._last_request_time = dict()
+
+    def load_from_db(self, user_model):
+        for db_user in user_model.query.all():
+            self.add_user(PublicUser.from_db(db_user))
+
+    @singledispatchmethod
+    def add_user(self, user):
+        raise TypeError(user)
+
+    @add_user.register
+    def _(self, user: User):
+        user = PublicUser.from_db(user)
         self._users_by_id[user.id] = user
         self._users_by_name[user.username] = user
         self._last_request_time[user.id] = datetime.utcnow()
 
-    def remove_user(self, user: User):
+    @add_user.register
+    def _(self, user: PublicUser):
+        self._users_by_id[user.id] = user
+        self._users_by_name[user.username] = user
+        self._last_request_time[user.id] = datetime.utcnow()
+
+    @singledispatchmethod
+    def remove_user(self, user):
+        raise TypeError(user)
+
+    @remove_user.register
+    def _(self, user: User):
         del self._users_by_id[user.id]
         del self._users_by_name[user.username]
         del self._last_request_time[user.id]
+        print("user removed", self._users_by_id)
+
+    def __len__(self):
+        return len(self._users_by_id)
+
+    @property
+    def user_dict(self) -> Dict[int, PublicUser]:
+        return self._users_by_id
 
     @singledispatchmethod
-    def lookup_user(self, user) -> User:
+    def lookup_user(self, user) -> PublicUser:
         raise TypeError(user)
 
     @lookup_user.register(int)
-    def _lookup_by_id(self, user: int) -> User:
-        return self._users_by_id.get(id, None)
+    def _(self, user_id: int) -> PublicUser:
+        return self._users_by_id.get(user_id, None)
 
     @lookup_user.register(str)
-    def _lookup_by_name(self, user: str) -> User:
+    def _(self, user: str) -> PublicUser:
         return self._users_by_name.get(user, None)
 
     @singledispatchmethod
@@ -81,12 +125,12 @@ class OnlineUserState:
         raise TypeError(user)
 
     @update_request_time.register
-    def _(self, user: int, time=datetime.utcnow()) -> None:
-        self._last_request_time[user] = time
+    def _(self, user_id: int, time=datetime.utcnow()) -> None:
+        self._last_request_time[user_id] = time
 
     @update_request_time.register
-    def _(self, user: str, time=datetime.utcnow()) -> None:
-        user_id = self._by_username[user].id
+    def _(self, username: str, time=datetime.utcnow()) -> None:
+        user_id = self._by_username[username].id
         self._last_request_time[user_id] = time
 
     @singledispatchmethod
@@ -102,11 +146,16 @@ class OnlineUserState:
         user_id = self._users_by_name[user].id
         return self._last_request_time[user_id]
 
-    def get_users_by_name(self) -> List[User]:
+    def get_users_by_name(self) -> List[PublicUser]:
         return self._users_by_name.values()
 
 
-onlineUsers = OnlineUserState()
+onlineUsers = PublicUserManager()
+
+
+@app.before_first_request
+def load_users():
+    onlineUsers.load_from_db(User)
 
 
 @login_manager.user_loader
@@ -134,13 +183,28 @@ def authentication_required(socket_func):
 @socketio.on("connect")
 @authentication_required
 def handle_connection():
+    user = onlineUsers.lookup_user(current_user.id)
+    user.online = True
+
     join_room("chat")
-    emit("message", "you have connected", broadcast=False, room="chat")
+    emit("message", "you have connected", broadcast=False, include_self=True)
     emit(
         "message",
         f"{current_user.username} has connected!",
         broadcast=True,
         include_self=False,
+    )
+    emit("user-joined", user.id, broadcast=True, include_self=True)
+
+
+@socketio.on("get-user-list")
+@authentication_required
+def get_online_users():
+    emit(
+        "online-users-mapping",
+        onlineUsers.user_dict,
+        broadcast=False,
+        include_self=True,
     )
 
 
@@ -153,8 +217,8 @@ def handle_message(data):
     db.session.add(message)
     db.session.commit()
     payload = {
-        "time": datetime.strftime(message.datetime, r"%H:%M:%S"),
-        "username": current_user.username,
+        "datetime": datetime.strftime(message.datetime, r"%H:%M:%S"),
+        "user_id": current_user.id,
         "text": text,
     }
     # payload = json.dumps(payload)
@@ -163,14 +227,34 @@ def handle_message(data):
 
 @socketio.on("disconnect")
 def handle_disconnect():
-    emit("message", "you have been disconnected", broadcast=False)
+    user = onlineUsers.lookup_user(current_user.id)
+    user.online = False
+
     emit(
         "message",
         f"{current_user.username} has disconnected",
         room="chat",
         broadcast=True,
     )
+    emit("user-left", current_user.id, room="chat", broadcast=True)
     disconnect()
+
+
+@socketio.on("get-messages")
+@authentication_required
+def get_messages(data):
+    since = datetime.utcnow()
+    messages = [
+        {
+            "text": msg.text,
+            "user_id": msg.user.id,
+            "datetime": msg.datetime.strftime(r"%H:%M:%S"),
+        }
+        for msg in reversed(
+            Message.query.order_by(Message.datetime.desc()).limit(100).all()
+        )
+    ]
+    emit("return-messages", messages, broadcast=False, include_self=True)
 
 
 app.add_template_filter(datetime.strftime)
@@ -188,7 +272,6 @@ def login():
         user = User.query.filter_by(username=form.username.data).first()
         if user and check_password_hash(user.password, form.password.data):
             login_user(user)
-            onlineUsers.add_user(user)
             flash("Login Success!", "success")
             return redirect(url_for("dashboard"))
 
@@ -204,7 +287,8 @@ def login():
 @app.route("/logout")
 @login_required
 def logout():
-    onlineUsers.remove_user(current_user)
+    user = onlineUsers.lookup_user(current_user.id)
+    user.online = False
     logout_user()
     return render_template("/test/logout.html")
 
@@ -222,7 +306,10 @@ def signup():
         db.session.add(new_user)
         db.session.commit()
         flash("User created!", "success")
+
+        onlineUsers.add_user(new_user)
         session["user_id"] = new_user.id
+
         return redirect(url_for("login")), 300
 
     elif form.is_submitted():
@@ -260,18 +347,7 @@ def dashboard():
 @app.route("/chat", methods=["POST", "GET"])
 @login_required
 def chat():
-    form = forms.Chat()
-    messages = Message.query.order_by(Message.datetime.desc()).limit(100).all()
-    return render_template(
-        "test/chat.html",
-        title="chat",
-        base=HTML_BASE,
-        form=form,
-        messages=messages,
-        online_users=[
-            (user.username, str(user.id)) for user in onlineUsers.get_users_by_name()
-        ],
-    )
+    return render_template("test/chat.html", title="chat", base=request.url_root)
 
 
 @app.route("/chat/messages")
@@ -292,6 +368,26 @@ def chat_messages():
     return resp
 
 
+@app.route("/api/get/userlist")
+@login_required
+def get_userlist():
+    user_list = [user.__dict__ for user in onlineUsers.user_dict.values()]
+    return json.dumps(user_list)
+
+
+@app.route("/api/get/chat/history")
+def get_chat_history():
+    before = request.get_json().get("before", datetime.timestamp())
+    before = datetime.fromtimestamp(before)
+    messages = (
+        Message.query.order_by(Message.datetime)
+        .filter(Message.datetime < before)
+        .limit(100)
+        .all()
+    )
+    return json.dumps(messages)
+
+
 @app.route("/chat/post", methods=["POST"])
 def chat_post():
     form = forms.Chat()
@@ -307,7 +403,7 @@ def chat_post():
 
 @app.route("/user/<user_id>/")
 def user_avatar(user_id):
-    user = User.query.filter(User.id == user_id).first()
+    user = onlineUsers.lookup_user(user_id)
     if not user:
         title = "invalid user"
     else:

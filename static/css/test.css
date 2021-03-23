@@ -42,6 +42,7 @@ body {
 
 .sidebar li {
     list-style: none;
+    text-align: center;
 }
 
 .sidebar li:hover {
