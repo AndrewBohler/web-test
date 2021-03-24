@@ -403,13 +403,13 @@ def chat_post():
 
 @app.route("/user/<user_id>/")
 def user_avatar(user_id):
-    user = onlineUsers.lookup_user(user_id)
+    user = onlineUsers.lookup_user(int(user_id))
     if not user:
         title = "invalid user"
+        return render_template("user_profile.html", title=title, user=user), 404
     else:
         title = user.username
-
-    return render_template("user_profile.html", title=title, user=user)
+        return render_template("user_profile.html", title=title, user=user)
 
 
 if __name__ == "__main__":
