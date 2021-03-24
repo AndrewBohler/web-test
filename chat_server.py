@@ -54,11 +54,16 @@ class PublicUser:
 
     id: int
     username: str
+    avatar_filename: str
     online: bool = False
 
     @classmethod
     def from_db(cls, db_user):
-        return cls(id=db_user.id, username=db_user.username)
+        return cls(
+            id=db_user.id,
+            username=db_user.username,
+            avatar_filename=db_user.avatar_filename,
+        )
 
 
 class PublicUserManager:
