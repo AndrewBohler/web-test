@@ -187,6 +187,7 @@ form input .submit {
     background-color: cadetblue;
     color: peachpuff;
     overflow-y: scroll;
+    word-wrap: break-word;
 }
 
 .timestamp {
