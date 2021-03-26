@@ -26,3 +26,11 @@ class Message(db.Model):
 
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"))
     user = db.relationship("User", backref="messages")
+
+    def to_json(self):
+        return {
+            "id": self.id,
+            "text": self.text,
+            "datetime": self.datetime.timestamp(),
+            "user_id": self.user_id,
+        }

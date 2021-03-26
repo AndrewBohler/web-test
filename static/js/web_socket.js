@@ -3,10 +3,11 @@
 const baseURL = document.getElementsByTagName('base')[0].href
 const socket = io(baseURL);
 class User {
-    constructor(id, username, online = false) {
+    constructor(id, username, online = false, datetime = new Date()) {
         this.id = id;
         this.username = username;
         this.online = online;
+        this.datetime = datetime;
     }
 }
 class UserList {
@@ -20,8 +21,7 @@ class UserList {
 
     updateHTML() {
         console.log('updating user list html');
-        console.log(this._online);
-        console.log(this._offline);
+        console.log(`users online: ${this._online.length}, users offline: ${this._offline.length}`);
         let newHTML = '<b><u>Online</u></b><ul>';
         for (let user of this._online) {
             newHTML += `<li><a href="${baseURL}user/${user.id}/">${user.username}</a></li>`
@@ -135,6 +135,9 @@ class UserList {
 const users = new UserList("user-list");
 class ChatMessage {
     constructor(datetime, user_id, text) {
+        if (!(datetime instanceof Date)) {
+            throw TypeError("datetime needs to be a Date object");
+        }
         this.datetime = datetime;
         this.user_id = user_id;
         this.text = text;
@@ -142,7 +145,7 @@ class ChatMessage {
 
     getHTML() {
         const username = users.get(this.user_id).username;
-        return `<span class="timestamp">[${this.datetime}]</span> `
+        return `<span class="timestamp">[${this.datetime.toLocaleTimeString("en-US")}]</span> `
             + `<span class="username">${username}</span> `
             + `${this.text}<br>`;
     }
@@ -153,36 +156,56 @@ class Chat {
         this.messages = [];
         this.div = document.getElementById(div_id);
         this.div.scrollTop = this.div.scrollHeight;
-        this.moreHistory = false;
-        setInterval((chat) => {
-            if (this.moreHistory && chat.div.scrollTop == 0) {
-                chat.getHistory();
-            }
-        }, 300, this)
+        this.historyChecker = undefined;
+    }
+
+    startHistoryChecker() {
+        if (this.historyChecker) {
+            console.log('historyChecker is already active!');
+        } else {
+            this.historyChecker = setInterval((chat) => {
+                if (chat.div.scrollTop <= 1) {
+                    console.log('historyChecker triggered');
+                    chat.getHistory();
+                }
+            }, 300, this);
+            console.log('historyChecker started!');
+        }
     }
 
     getHistory() {
         const endpoint = baseURL + "api/get/chat/history";
-        const request = new XMLHttpRequest;
-        const data = JSON.stringify({ "before": Date.now() })
-        console.log(`requesting chat history from ${endpoint}`);
-        request.open("GET", endpoint, false);
-        request.setRequestHeader("Content-Type", "application/json");
-        request.send(data);
+        // const request = new XMLHttpRequest;
+        const data = JSON.stringify({ "before": this.messages[0].datetime.getTime() })
 
-        if (request.status >= 400) {
-            this.moreHistory = false;
-        }
+        fetch(endpoint, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: data,
+        })
+            .then(response => response.json())
+            .then(messages => {
+                if (messages.length == 0) {
+                    console.log('getHistory reveived no messages, clearing historyChecker...');
+                    clearInterval(this.historyChecker);
+                } else {
+                    for (let msg of messages) {
+                        let message = new ChatMessage(
+                            new Date(msg.datetime),
+                            msg.user_id,
+                            msg.text,
+                        )
+                        this.push_front(message);
+                    }
+                }
+            })
+            .catch((error) => {
+                console.error('Error:', error);
+            });
 
-        for (let message of JSON.parse(request.responseText)) {
-            this.push_front(ChatMessage(
-                datetime = message.datetime,
-                user_id = message.user_id,
-                text = message.text
-            ));
-        }
-
-        this.refresh();
+        this.updateHTML();
     }
 
     push_front(message) {
@@ -191,10 +214,22 @@ class Chat {
         this.messages.unshift(message);
     }
 
-    push_back(message) {
+    append(message) {
         const scrollSticky = (this.div.scrollHeight - (this.div.clientHeight + this.div.scrollTop) + 1) < 2;
-        this.messages.push(message);
-        this.div.innerHTML += message.getHTML();
+        let index = this.messages.length - 1;
+        if (this.messages.length == 0 || this.messages[index].datetime < message.datetime) {
+            this.messages.push(message);
+            this.div.innerHTML += message.getHTML();
+        } else {
+            while (index > 0) {
+                if (this.messages[index - 1].datetime < message.datetime) {
+                    this.messages.splice(index, 0, message);
+                    break;
+                }
+                index--;
+            }
+            this.updateHTML();
+        }
         if (scrollSticky) this.div.scrollTop = this.div.scrollHeight;
     }
 
@@ -204,12 +239,16 @@ class Chat {
         if (scrollSticky) this.div.scrollTop = this.div.scrollHeight;
     }
 
-    refresh() {
+    updateHTML() {
+        const currentHeight = this.div.scrollHeight;
+        const currentTopHeight = this.div.scrollTop;
         let newHTML = '';
         this.messages.forEach((message) => {
             newHTML += message.getHTML();
         });
         this.div.innerHTML = newHTML;
+        const newHeightOffset = this.div.scrollHeight - currentHeight;
+        this.div.scrollTop = currentTopHeight + newHeightOffset;
     }
 }
 
@@ -222,12 +261,28 @@ socket.on('connect', () => {
     socket.emit("get-messages", { "since": null });
 });
 
-socket.on('user-joined', (user_id) => {
-    users.setUserOnlineStatus(user_id, true);
+socket.on('user-joined', (data) => {
+    const datetime = new Date(data.timestamp);
+    let user = users.get(data.user_id);
+    console.log(`user ${data.user_id} has joined`)
+    console.log(`${datetime.toTimeString()}`);
+    console.log(`${user.datetime.toTimeString()}`);
+    console.log(`username is ${user.username}`);
+    if (user.datetime < datetime) {
+        console.log(`updateing user ${user.id} state`);
+        users.setUserOnlineStatus(data.user_id, true);
+        user.datetime = datetime;
+    }
 });
 
-socket.on('user-left', (user_id) => {
-    users.setUserOnlineStatus(user_id, false);
+socket.on('user-left', (data) => {
+    console.log(`user ${data.user_id} has left`);
+    let user = users.get(data.user_id);
+    const datetime = new Date(data.timestamp);
+    if (user.datetime < datetime) {
+        users.setUserOnlineStatus(user_id, false);
+        user.datetime = datetime;
+    }
 });
 
 socket.on('disconnect', (reason) => {
@@ -235,8 +290,8 @@ socket.on('disconnect', (reason) => {
 });
 
 socket.on('chat-message', (data) => {
-    const message = new ChatMessage(data.datetime, data.user_id, data.text);
-    chatBox.push_back(message);
+    const message = new ChatMessage(new Date(data.datetime), data.user_id, data.text);
+    chatBox.append(message);
 });
 
 socket.on('message', (message) => {
@@ -247,8 +302,9 @@ socket.on("return-messages", (messages) => {
     console.log(`recieved ${messages.length} messages, appending to chatBox`);
     console.log(messages);
     for (let message of messages) {
-        chatBox.push_back(new ChatMessage(message.datetime, message.user_id, message.text));
+        chatBox.append(new ChatMessage(new Date(message.datetime), message.user_id, message.text));
     }
+    if (chatBox.historyChecker == undefined) chatBox.startHistoryChecker();
 });
 
 const message = document.getElementById('chat-message')

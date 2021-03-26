@@ -199,7 +199,27 @@ def handle_connection():
         broadcast=True,
         include_self=False,
     )
-    emit("user-joined", user.id, broadcast=True, include_self=True)
+
+    data = {"user_id": user.id, "timestamp": datetime.utcnow().timestamp()}
+
+    emit("user-joined", data, broadcast=True, include_self=True)
+
+
+@socketio.on("disconnect")
+def handle_disconnect():
+    user = onlineUsers.lookup_user(current_user.id)
+    user.online = False
+
+    emit(
+        "message",
+        f"{current_user.username} has disconnected",
+        room="chat",
+        broadcast=True,
+    )
+
+    data = {"user_id": user.id, "timestamp": datetime.utcnow().timestamp()}
+    emit("user-left", data, room="chat", broadcast=True)
+    disconnect()
 
 
 @socketio.on("get-user-list")
@@ -221,28 +241,10 @@ def handle_message(data):
     message = Message(text=text, datetime=datetime.utcnow(), user_id=current_user.id)
     db.session.add(message)
     db.session.commit()
-    payload = {
-        "datetime": datetime.strftime(message.datetime, r"%H:%M:%S"),
-        "user_id": current_user.id,
-        "text": text,
-    }
-    # payload = json.dumps(payload)
-    emit("chat-message", payload, broadcast=True, include_self=True, room=room)
-
-
-@socketio.on("disconnect")
-def handle_disconnect():
-    user = onlineUsers.lookup_user(current_user.id)
-    user.online = False
 
     emit(
-        "message",
-        f"{current_user.username} has disconnected",
-        room="chat",
-        broadcast=True,
+        "chat-message", message.to_json(), broadcast=True, include_self=True, room=room
     )
-    emit("user-left", current_user.id, room="chat", broadcast=True)
-    disconnect()
 
 
 @socketio.on("get-messages")
@@ -250,11 +252,7 @@ def handle_disconnect():
 def get_messages(data):
     since = datetime.utcnow()
     messages = [
-        {
-            "text": msg.text,
-            "user_id": msg.user.id,
-            "datetime": msg.datetime.strftime(r"%H:%M:%S"),
-        }
+        msg.to_json()
         for msg in reversed(
             Message.query.order_by(Message.datetime.desc()).limit(100).all()
         )
@@ -380,17 +378,25 @@ def get_userlist():
     return json.dumps(user_list)
 
 
-@app.route("/api/get/chat/history")
+@app.route("/api/get/chat/history", methods=["POST"])
 def get_chat_history():
-    before = request.get_json().get("before", datetime.timestamp())
+    if not request.is_json:
+        return "Expected json containing 'before': UNIX timestamp", 400
+    before = request.get_json().get("before", None)
+    if not before:
+        return (
+            "request must inclue 'before' which contains the UNIX time to look for",
+            400,
+        )
     before = datetime.fromtimestamp(before)
     messages = (
-        Message.query.order_by(Message.datetime)
+        Message.query.order_by(Message.datetime.desc())
         .filter(Message.datetime < before)
         .limit(100)
         .all()
     )
-    return json.dumps(messages)
+    payload = json.dumps([msg.to_json() for msg in messages])
+    return payload
 
 
 @app.route("/chat/post", methods=["POST"])
