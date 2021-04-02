@@ -8,6 +8,54 @@ class User {
         this.username = username;
         this.online = online;
         this.datetime = datetime;
+        this.cardHTML = undefined;
+    }
+
+    getCardHTML() {
+        if (this.cardHTML) {
+            return this.cardHTML;
+        } else {
+            const endpoint = `$(baseURL)/user/${this.id}/card`;
+            this.cardHTML = fetch(endpoint, { method: 'GET' }).then(response => response.text());
+            return this.cardHTML;
+        }
+    }
+
+    // load this user's stats onto the user-card element and display
+    displayUserCard() {
+        makeUserCardDraggable();
+        const userCard = document.getElementById("user-card");
+        const userCardAvatar = document.getElementById("user-card-avatar");
+        const userCardTable = document.getElementById("user-card-table");
+        userCardAvatar.src = `/static/avatars/user_${this.id}_avatar.jpg`;
+        let newTable = document.createElement("table");
+        newTable.id = userCardTable.id;
+        newTable.className = userCardTable.className;
+
+        fetch(`${baseURL}api/get/user/${this.id}/stats`)
+            .then((response) => response.json())
+            .then((userStats) => {
+                for (const [label, value] of Object.entries(userStats)) {
+                    let tableRow = document.createElement("tr");
+                    let td1 = document.createElement("td");
+                    let td2 = document.createElement("td");
+                    let text1 = document.createTextNode(label);
+                    let text2 = document.createTextNode(value);
+                    td1.appendChild(text1);
+                    td2.appendChild(text2);
+                    tableRow.appendChild(td1);
+                    tableRow.appendChild(td2);
+                    newTable.appendChild(tableRow);
+                }
+            })
+
+        userCard.replaceChild(newTable, userCardTable);
+        if (userCard.style.display !== "block") {
+            console.log("user-card is not displayed, resetting position");
+            userCard.style.top = document.getElementById("sidebar").style.left;
+            userCard.style.left = document.getElementById("navbar").style.bottom;
+            userCard.style.display = "block";
+        }
     }
 }
 class UserList {
@@ -22,16 +70,23 @@ class UserList {
     updateHTML() {
         console.log('updating user list html');
         console.log(`users online: ${this._online.length}, users offline: ${this._offline.length}`);
-        let newHTML = '<b><u>Online</u></b><ul>';
+        let newHTML = '<b><u>Online</u></b>';
         for (let user of this._online) {
-            newHTML += `<li><a href="${baseURL}user/${user.id}/">${user.username}</a></li>`
+            // newHTML += `<li><a href="${baseURL}user/${user.id}/">${user.username}</a></li>`
+            newHTML += `<div id="user-list-item-${user.id}" class="user-list-item">${user.username}</div>`
         }
-        newHTML += '</ul><b><u>Offline</u></b><ul>'
+        newHTML += '</ul><b><u>Offline</u></b>'
         for (let user of this._offline) {
-            newHTML += `<li><a href="${baseURL}user/${user.id}/">${user.username}</a></li>`
+            // newHTML += `<li><a href="${baseURL}user/${user.id}/">${user.username}</a></li>`
+            newHTML += `<div id="user-list-item-${user.id}" class="user-list-item">${user.username}</div>`
         }
-        newHTML += '</ul>'
+
         this.div.innerHTML = newHTML;
+
+        for (let user of this._map.values()) {
+            let element = document.getElementById(`user-list-item-${user.id}`);
+            element.onclick = user.displayUserCard.bind(user);
+        }
     }
 
     refresh() {
@@ -253,6 +308,38 @@ class Chat {
 }
 
 const chatBox = new Chat('chat-box');
+
+function makeUserCardDraggable() {
+    const userCard = document.getElementById("user-card");
+    userCard.prevMousePos = { x: 0, y: 0 };
+
+    userCard.onmousedown = (event) => {
+        userCard.prevMousePos.x = event.offsetX;
+        userCard.prevMousePos.y = event.offsetY;
+
+        function onMouseMove(event) {
+            const userCard = document.getElementById('user-card');
+            const x = event.pageX - userCard.offsetWidth / 2;
+            const y = event.pageY - userCard.offsetHeight / 2;
+
+            userCard.style.left = `${x}px`;
+            userCard.style.top = `${y}px`;
+        }
+
+        // (2) move the ball on mousemove
+        console.log("adding event listener onMouseMove");
+        document.addEventListener('mousemove', onMouseMove);
+
+        // (3) drop the ball, remove unneeded handlers
+        userCard.onmouseup = function () {
+            console.log("removing event listener onMouseMove");
+            document.removeEventListener('mousemove', onMouseMove);
+            userCard.onmouseup = null;
+        };
+
+    }
+}
+
 
 socket.on('connect', () => {
     console.log(`connection successful, socket id: ${socket.id}`);

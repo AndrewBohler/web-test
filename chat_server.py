@@ -371,6 +371,26 @@ def get_userlist():
     return json.dumps(user_list)
 
 
+@app.route("/api/get/user/<user_id>/stats")
+def get_user_stats(user_id):
+    user = User.query.filter(User.id == int(user_id)).first()
+    if user:
+        status = 200
+        stats = {
+            "ID": user.id,
+            "Username": user.username,
+            "Posts": Message.query.filter(Message.user_id == user.id).count(),
+            "Status": "Online"
+            if onlineUsers.lookup_user(user.id).online
+            else "Offline",
+        }
+    else:
+        status = 404
+        stats = {}
+
+    return json.dumps(stats), status
+
+
 @app.route("/api/get/chat/history", methods=["POST"])
 def get_chat_history():
     if not request.is_json:
@@ -414,6 +434,23 @@ def user_avatar(user_id):
     else:
         title = user.username
         return render_template("user_profile.html", title=title, user=user)
+
+
+@app.route("/user/<user_id>/card")
+def user_card(user_id):
+    user = User.query.filter(User.id == user_id).first()
+    if user:
+        stats = {
+            "ID": str(user.id),
+            "Username": user.username,
+            "Posts": str(Message.query.filter(Message.user_id == user.id).count()),
+            # "Status": ("Online" if user.online else "Offline"),
+        }
+        avatar = f"{user.avatar_filename}"
+        return render_template("user-card.html", stats=stats, avatar=avatar)
+
+    else:
+        return render_template("user-card.html"), 404
 
 
 if __name__ == "__main__":

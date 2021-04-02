@@ -3,14 +3,23 @@
 {% block includes %}
 <base href="{{ base }}" target="_self">
 <script src="https://cdn.jsdelivr.net/npm/socket.io-client@3.1.1/dist/socket.io.min.js" crossorigin="anonymous"></script>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/user-card.css') }}">
 {% endblock includes %}
 
 {% block sidebar %}
-    <div id = "sidebar" class="sidebar">
+    <div id="sidebar" class="sidebar">
         <div id="user-list" class="sidebar">
         </div>
     </div>
 {% endblock sidebar %}
+
+{% block body_addon %}
+<div id="user-card">
+    <img id="user-card-avatar" href="{{ url_for('static', filename='/avatars/default.jpg') }}">
+    <table id="user-card-table"></table>
+    <div id="user-card-close" onclick="this.parentNode.style.display = 'none'">X</div>
+</div>
+{% endblock body_addon %}
 
 {% block content %}
 <div id="chat-box" class="chat-box">
@@ -20,6 +29,7 @@
 <div>
     <input id="chat-message" type="text">
 </div>
+
 <script src="{{ url_for('static', filename='js/web_socket.js') }}" type="module"></script>
 
 {% endblock content %}

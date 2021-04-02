@@ -1,0 +1,49 @@
+div#user-card {
+    display: none;
+    position: absolute;
+    top: 0px;
+    bottom: 0px;
+    z-index: 1;
+    padding: 20px;
+    max-width: 300px;
+    max-height: 600px;
+    background-color: cadetblue;
+    color: peachpuff;
+    font-size: 12pt;
+    border: 3px solid lightgrey;
+    overflow-y: auto;
+    overflow-x:hidden;
+}
+
+table#user-card-table {
+    padding: 12pt;
+    border: darkgrey solid 3px;
+    width: 100%;
+    overflow-y: auto;
+}
+
+div#user-card-close {
+    display: block;
+    position: absolute;
+    top: 0%;
+    right: 0%;
+    color: black;
+    font-size: 16pt;
+    font-weight: bold;
+    margin: 3px;
+    padding: 2pt;
+    border: none;
+    background-color: rgba(211, 211, 211, 0.442);
+    cursor: pointer;
+}
+
+img#avatar{
+    position: relative;
+    max-width: 90%;
+    max-height: 200px;
+    left: 5%;
+    top: 0%;
+    height: 200px;
+    object-fit: contain;
+    object-position: center;
+}

@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/user-card.css') }}">
+<style>div#user-card { display: block; }</style>
+</head>
+
+<body>
+    <div id="user-card">
+        {% if stats %}
+        <img id="avatar" src="{{ url_for('static', filename='avatars/' + avatar ) }}">
+        <table id="user-stats">
+            {% for label, value in stats.items() %}
+            <tr><td>{{ label }}</td><td>{{ value }}</td></tr>
+            {% endfor %}
+        </table>
+        {% else %}
+        <h1>Error</h1>
+        {% endif %}
+        <div id="close-user-card">X</div>
+    </div>
+
+</body>
+
+</html>

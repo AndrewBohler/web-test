@@ -25,7 +25,7 @@
 <body>
 
 {% block navbar %}
-<div class="navbar">
+<div id="navbar" class="navbar">
     <a href="{{ url_for('index') }}"><div class="icon" display="inline"><img src="{{ url_for('static', filename='favicon.ico') }}"></div></a>
     <ul>
         {% if title=="index" %}<li active="true">
@@ -66,7 +66,7 @@
 {% endblock navbar %}
 
 {% block sidebar %}
-    <div class="sidebar">
+    <div id="sidebar" class="sidebar">
         <ul>
             <li>Lorum Ipsum</li>
             <li>Lorum Ipsum</li>
@@ -101,7 +101,6 @@
 {% endwith %}
 {% endblock flashed_messages %}
 
-    
 
     <div class="content">
     {% block content %}
@@ -112,6 +111,8 @@
     </div>
 
 </div>
+{% block body_addon %}
+{% endblock body_addon%}
 
 </body>
 
