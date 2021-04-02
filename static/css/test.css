@@ -202,6 +202,14 @@ form input .submit {
     color:orange;
 }
 
+.user-list-item {
+    cursor: pointer;
+}
+
+.user-list-item:hover {
+    background-color: darkgrey;
+}
+
 input#chat-message {
     position: relative;
     left: 10%;
