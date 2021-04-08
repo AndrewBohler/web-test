@@ -43,6 +43,11 @@
         {% endif %}
                 <a href="{{ url_for('chat') }}">Chat</a>
             </li>
+        {% if title=="space" %}<li active="true">
+        {% else %}<li>
+        {% endif %}
+                <a href="{{ url_for('space') }}">Space</a>
+            </li>
         {% if current_user.is_authenticated %}
             {% if title=="logout" %}<li active="true">
             {% else %}<li>
@@ -79,7 +84,7 @@
     </div>
 {% endblock sidebar %}
 
-<div class="page-middle">
+<div id="page-middle" class="page-middle">
 
 {% block flashed_messages %}
 {% with messages = get_flashed_messages(with_categories=true) %}

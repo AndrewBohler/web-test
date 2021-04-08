@@ -364,6 +364,11 @@ def chat_messages():
     return resp
 
 
+@app.route("/space")
+def space():
+    return render_template("test/space.html")
+
+
 @app.route("/api/get/userlist")
 @login_required
 def get_userlist():

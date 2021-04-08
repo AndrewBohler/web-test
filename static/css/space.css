@@ -1,0 +1,18 @@
+div#render-area {
+    display: block;
+    position: relative;
+    float:left;
+    top: 0px;
+    left: 0px;
+    width: 500px;
+    height: 500px;
+    overflow: hidden;
+    background-color: black;
+    border: darkgrey solid 3px;
+}
+
+button#controls {
+    position: relative;
+    display: block;
+    float: left;
+}
