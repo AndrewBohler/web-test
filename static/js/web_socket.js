@@ -2,6 +2,7 @@
 
 const baseURL = document.getElementsByTagName('base')[0].href
 const socket = io(baseURL);
+
 class User {
     constructor(id, username, online = false, datetime = new Date()) {
         this.id = id;

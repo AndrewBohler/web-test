@@ -11,10 +11,12 @@
 <div id="controls">
     <button id="toggle-running-button" onclick="toggleRunning()">Start</button>
     <button id="reset-button" onclick="reset()">Reset</button>
-    <button id="toggle-spawning-button" onclick="toggleSpawning()">Toggle Spawning</button>
+    <button id="toggle-asteroid-spawning-button" onclick="toggleAsteroidSpawning()">Spawn Asteroids</button>
+    <button id="toggle-planet-spawning-button" onclick="togglePlanetSpawning()">Spawn Planets</button>
+    <button id="center-button" onclick="centerBodies()">Center</button>
     <span>BodyCount</span>
-    <button id="deacrease-bodyCount" onclick="addToState('maxBodyCount', -10)">-</button>
-    <button id="increase-bodyCount" onclick="addToState('maxBodyCount', 10)">+</button>
+    <button id="deacrease-bodyCount" onclick="addToState('maxPlanetCount', -10)">-</button>
+    <button id="increase-bodyCount" onclick="addToState('maxPlanetCount', 10)">+</button>
     <span>TS</span>
     <button id="decrease-timeStep" onclick="multiplyToState('timeStep', 0.9)">-</button>
     <button id="increase-timeStep" onclick="multiplyToState('timeStep', 1.1)">+</button>
@@ -25,5 +27,11 @@
 </div>
 <div id="render-area">
 </div>
+<canvas id="render-canvas" width="640" height="480"></canvas>
 <script src="{{ url_for('static', filename='js/space.js') }}" type="text/javascript"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gl-matrix/2.8.1/gl-matrix-min.js"
+    integrity="sha512-zhHQR0/H5SEBL3Wn6yYSaTTZej12z0hVZKOv3TwCUXT1z5qeqGcXJLLrbERYRScEDDpYIJhPC1fk31gqR783iQ=="
+    crossorigin="anonymous" defer>
+</script>
+<script src="{{ url_for('static', filename='js/space2.js') }}" type="text/javascript"></script>
 {% endblock content %}
