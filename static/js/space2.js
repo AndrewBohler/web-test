@@ -15,7 +15,7 @@ function createMVP()
     const fieldOfView = 45 * Math.PI / 180;   // in radians
     const aspect = gl.canvas.clientWidth / gl.canvas.clientHeight;
     const zNear = 0.1;
-    const zFar = 100.0;
+    const zFar = 10000.0;
 
     const mvp = {
         model: mat4.create(),
@@ -24,58 +24,71 @@ function createMVP()
     }
 
     mat4.perspective(mvp.projection, fieldOfView, aspect, zNear, zFar);
-    mat4.translate(mvp.view, mvp.view, [-0.0, 0.0, -10.0]);
+    mat4.translate(mvp.view, mvp.view, [-0.0, 0.0, -50.0]);
 
     return mvp;
 }
 
-let debugCounter = 0;
+let first = true;
+function updateVelocities(instances)
+{
+    // placeholders
+    const G = -0.0000001;
+    const mass2 = 10000;
+    const TS = 0.0001;
 
-function drawScene(mvp, models)
+    for (const body of instances)
+    {
+        const gravity = vec3.create();
+        for (const other of instances)
+        {
+            const dist = Math.hypot(
+                other.position[0] - body.position[0],
+                other.position[1] - body.position[1],
+                other.position[2] - body.position[2]
+            );
+
+            if (dist == 0) continue;
+
+            const sqrtDist = Math.sqrt(dist);
+
+            body.velocity[0] += (G * mass2 * (body.position[0] - other.position[0])) / sqrtDist * TS;
+            body.velocity[1] += (G * mass2 * (body.position[1] - other.position[1])) / sqrtDist * TS;
+            body.velocity[2] += (G * mass2 * (body.position[2] - other.position[2])) / sqrtDist * TS;
+        }
+
+        const dist = Math.hypot(...body.position);
+        if (dist == 0) continue;
+        sqrtDist = Math.sqrt(dist);
+
+        body.velocity[0] += (G * mass2 * mass2 * body.position[0]) / sqrtDist * TS;
+        body.velocity[1] += (G * mass2 * mass2 * body.position[1]) / sqrtDist * TS;
+        body.velocity[2] += (G * mass2 * mass2 * body.position[2]) / sqrtDist * TS;
+    }
+}
+
+function drawScene(mvp, model, instances)
 {
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    const identity = mat4.create();
+    for (const inst of instances)
+    {
+        inst.position[0] += inst.velocity[0];
+        inst.position[1] += inst.velocity[1];
+        inst.position[2] += inst.velocity[2];
 
-    // for (const model of models) model.render(mvp);
+        mat4.fromRotation(mvp.model, Math.hypot(...inst.position), inst.position);
+        mat4.translate(mvp.model, mvp.model, inst.position);
+        model.render(mvp);
+    }
 
-    // models[0].render(mvp);
-    models[1].render(mvp);
-
-    // const currentloc = models[0].shader.attributes.get("aVertexPosition");
-    // const previousloc = gl.getAttribLocation(models[0].shader.program, "aVertexPosition");
-
-    // console.log(`attrib position ${previousloc} -> ${currentloc} and they are equal: ${previousloc === currentloc}`);
-
-    // gl.useProgram(models[0].shader.program);
-    // gl.bindBuffer(gl.ARRAY_BUFFER, models[0].vertexBuffer);
-    // gl.vertexAttribPointer(currentloc, 3, gl.FLOAT, false, 3 * 4, 0);
-    // gl.enableVertexAttribArray(currentloc);
-    // gl.uniformMatrix4fv(models[0].shader.uniforms.get("uModelMatrix"), false, mvp.model);
-    // gl.uniformMatrix4fv(models[0].shader.uniforms.get("uViewMatrix"), false, mvp.view);
-    // gl.uniformMatrix4fv(models[0].shader.uniforms.get("uProjectionMatrix"), false, mvp.projection);
-
-
-    // for (const [mode, offset, count] of models[0].renderSequence)
-    // {
-    //     gl.drawArrays(gl.LINES, offset, count);
-    //     if (gl.getError()) console.log(`error: ${gl.getError()}`);
-    // }
-
-    gl.drawArrays(gl.LINES, 0, 62);
+    updateVelocities(instances);
     
     // const ms = Date.now();
     // const angle = ms / 100000.0 * 2 * Math.PI;
-    const angle = 2 * Math.PI / 100;
+    // const angle = 2 * Math.PI / 100;
     
-    mat4.rotateX(mvp.model, mvp.model, angle);
-    // mat4.translate(mvp.view, mvp.view, [0.0, 0.0, 0.1]);
-    
-    
-    // const count = Math.floor(ms / 1000);
-    // if (count > debugCounter + 5)
-    // {
-    //     debugCounter = count;
-    //     console.log(gl.getError());
-    // }
+    // mat4.rotateX(mvp.model, mvp.model, angle);
 }
 
 
@@ -391,18 +404,30 @@ function main() {
 
     setupScene();
 
-    const sphere = createSphere(25, 25);
+    const sphere = createSphere(30, 30);
 
-    const vbo = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([1.0, 1.0, 0.0, -1.0, 1.0, 0.0, 1.0, -1.0, 0.0, -1.0, -1.0, 0.0]), gl.STATIC_DRAW);
-    const square = new Model(sphere.shader, vbo, [[gl.TRIANGLE_STRIP, 0, 4],]);
+    const instances = [];
+    for (let i = 0; i < 100; i++)
+    {
+        const px = Math.random() - 0.5;
+        const py = Math.random() - 0.5;
+        const pz = Math.random() - 0.5;
+        const dx = Math.random() - 0.5;
+        const dy = Math.random() - 0.5;
+        const dz = Math.random() - 0.5;
 
-    const models = [square, sphere];
+        body = {
+            position: vec3.fromValues(px * 10, py * 10, pz * 10),
+            velocity: vec3.fromValues(dx, dy, dz)
+        }
 
+        instances.push(body);
+    }
+
+    console.log(instances);
     console.log("setting interval for drawScene");
     // Draw the scene
-    setInterval(drawScene, 100, mvp, models);
+    setInterval(drawScene, 1000 / 60, mvp, sphere, instances);
 }
 
 window.onload = main;
