@@ -341,6 +341,7 @@ function createSphere(lattitudeDivisions, longitudeDivisions)
     gl.bindBuffer(gl.ARRAY_BUFFER, vbo)
     gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW);
 
+    // vertex shader
     const vsSource = `
         attribute vec3 aVertexPosition;
 
@@ -356,14 +357,15 @@ function createSphere(lattitudeDivisions, longitudeDivisions)
         }
     `;
   
-    // Fragment shader program
-  
+    // Fragment shader
     const fsSource = `
         precision highp float;
         varying vec4 fragPos;
         varying vec4 fragColor;
+
         void main() {
-            gl_FragColor = fragPos;
+            float mag = length(fragPos.xyz);
+            gl_FragColor = vec4(fragPos.xyz / mag, 1.0);
         }
     `;
 
