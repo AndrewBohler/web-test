@@ -69,14 +69,16 @@ let first = true;
 function updateVelocities(instances, stars)
 {
     // placeholders
-    const G = -0.0000001;
-    const TS = 0.0001;
+    const G = -0.00000001;
+    const TS = 0.1;
 
-    for (const body of instances)
+    for (let body of instances)
     {
         // other bodies
-        for (const other of instances)
+        for (let other of instances)
         {
+            if (body.id == other.id) continue;
+
             const dist = Math.hypot(
                 other.position[0] - body.position[0],
                 other.position[1] - body.position[1],
@@ -85,15 +87,15 @@ function updateVelocities(instances, stars)
 
             if (dist < 1) continue;
 
-            const sqrtDist = Math.pow(dist, 2);
+            const distSquared = Math.pow(dist, 2);
 
-            body.velocity[0] += (G * body.mass * other.mass * (body.position[0] - other.position[0])) / sqrtDist * TS;
-            body.velocity[1] += (G * body.mass * other.mass * (body.position[1] - other.position[1])) / sqrtDist * TS;
-            body.velocity[2] += (G * body.mass * other.mass * (body.position[2] - other.position[2])) / sqrtDist * TS;
+            body.velocity[0] += (G * body.mass * other.mass * (body.position[0] - other.position[0])) / distSquared * TS / body.mass;
+            body.velocity[1] += (G * body.mass * other.mass * (body.position[1] - other.position[1])) / distSquared * TS / body.mass;
+            body.velocity[2] += (G * body.mass * other.mass * (body.position[2] - other.position[2])) / distSquared * TS / body.mass;
         }
 
         // stars
-        for (const star of stars)
+        for (let star of stars)
         {
             const dist = Math.hypot(
                 star.position[0] - body.position[0],
@@ -103,32 +105,51 @@ function updateVelocities(instances, stars)
 
             if (dist < 1) continue;
 
-            const sqrtDist = Math.pow(dist, 2);
+            const distSquared = Math.pow(dist, 2);
 
-            body.velocity[0] += (G * body.mass * star.mass * (body.position[0] - star.position[0])) / sqrtDist * TS;
-            body.velocity[1] += (G * body.mass * star.mass * (body.position[1] - star.position[1])) / sqrtDist * TS;
-            body.velocity[2] += (G * body.mass * star.mass * (body.position[2] - star.position[2])) / sqrtDist * TS;
+            body.velocity[0] += (G * body.mass * star.mass * (body.position[0] - star.position[0])) / distSquared * TS / body.mass;
+            body.velocity[1] += (G * body.mass * star.mass * (body.position[1] - star.position[1])) / distSquared * TS / body.mass;
+            body.velocity[2] += (G * body.mass * star.mass * (body.position[2] - star.position[2])) / distSquared * TS / body.mass;
         }
     }
 
     // stars vs stars
-    for (const body of stars)
+    for (let star of stars)
     {
-        for (const star of stars)
+        for (let other of stars)
         {    
+            if (star.id == other.id) continue;
+
             const dist = Math.hypot(
-                star.position[0] - body.position[0],
-                star.position[1] - body.position[1],
-                star.position[2] - body.position[2]
+                other.position[0] - star.position[0],
+                other.position[1] - star.position[1],
+                other.position[2] - star.position[2]
             );
 
-            if (dist < 1) continue;
+            if (dist < 10) continue;
 
             const sqrtDist = Math.pow(dist, 2);
 
-            body.velocity[0] += (G * body.mass * star.mass * (body.position[0] - star.position[0])) / sqrtDist * TS;
-            body.velocity[1] += (G * body.mass * star.mass * (body.position[1] - star.position[1])) / sqrtDist * TS;
-            body.velocity[2] += (G * body.mass * star.mass * (body.position[2] - star.position[2])) / sqrtDist * TS;
+            star.velocity[0] += (G * star.mass * other.mass * (star.position[0] - other.position[0])) / sqrtDist * TS / star.mass;
+            star.velocity[1] += (G * star.mass * other.mass * (star.position[1] - other.position[1])) / sqrtDist * TS / star.mass;
+            star.velocity[2] += (G * star.mass * other.mass * (star.position[2] - other.position[2])) / sqrtDist * TS / star.mass;
+        }
+
+        for (let other of instances)
+        {    
+            const dist = Math.hypot(
+                other.position[0] - star.position[0],
+                other.position[1] - star.position[1],
+                other.position[2] - star.position[2]
+            );
+
+            if (dist < 10) continue;
+
+            const sqrtDist = Math.pow(dist, 2);
+
+            star.velocity[0] += (G * star.mass * other.mass * (star.position[0] - other.position[0])) / sqrtDist * TS / star.mass;
+            star.velocity[1] += (G * star.mass * other.mass * (star.position[1] - other.position[1])) / sqrtDist * TS / star.mass;
+            star.velocity[2] += (G * star.mass * other.mass * (star.position[2] - other.position[2])) / sqrtDist * TS / star.mass;
         }
     }
 }
@@ -137,7 +158,7 @@ function drawScene(mvp, models, instances, stars)
 {
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     
-    mat4.rotateX(mvp.view, mvp.view, 0.005);
+    mat4.rotateX(mvp.view, mvp.view, 0.001);
 
     for (let i = 0; i < instances.length; i++)
     {
@@ -674,6 +695,8 @@ function main() {
 
     setupScene();
 
+    let id = 0;
+
     const instances = [];
     for (let i = 0; i < 100; i++)
     {
@@ -688,6 +711,7 @@ function main() {
             position: vec3.fromValues(px * 100, py * 100, pz * 100),
             velocity: vec3.fromValues(dx * 0.0, dy * 0.0, dz * 0.0),
             mass: Math.random() + 1.0 * 1000 + 100,
+            id: id++,
         }
 
         instances.push(body);
@@ -708,11 +732,19 @@ function main() {
 
         star = {
             position: vec3.fromValues(px * 50, py * 50, 0.0),
-            velocity: vec3.fromValues(dx * 5, dy * 5, 0.0),
-            mass: 1000000,
+            velocity: vec3.fromValues(dx * 0.1, dy * 0.1, 0.0),
+            mass: 100000,
+            id: id++,
         };
         stars.push(star);
     }
+
+    stars.push({
+        position: vec3.fromValues(0.0, 0.0, 0.0),
+        velocity: vec3.fromValues(0.0, 0.0, 0.0),
+        mass: 10000000,
+        id: id++,
+    })
 
     const cube = createCube();
     const sphere = createSphere(30, 30);
@@ -733,7 +765,7 @@ function main() {
     console.log(models);
 
     // Draw the scene
-    setInterval(drawScene, 1000 / 60, mvp, models, instances, stars);
+    setInterval(drawScene, 1000 / 600, mvp, models, instances, stars);
 }
 
 window.onload = main;
