@@ -1,4 +1,7 @@
-let gl; // can't be const because it's instantiate on window load
+import { VertexBuffer, BufferLayout } from './modules/VertexBuffer.js';
+import { Model } from './modules/model.js';
+import { Shader } from './modules/shader.js';
+import { gl, setContext } from './modules/common.js';
 
 
 function setupScene()
@@ -7,42 +10,6 @@ function setupScene()
     gl.clearDepth(1.0);
     gl.enable(gl.DEPTH_TEST);
     gl.depthFunc(gl.LEQUAL); 
-}
-
-
-function createFrameAndTextureBuffer(width, height)
-{
-    if (width <= 0 || height <= 0) return null;
-
-    // create texture to render to
-    const texture = gl.createTexture();
-    gl.bindTexture(gl.TEXTURE_2D, texture);
-
-    // define and format of level 0, what is "level 0"?
-    const level = 0;
-    const internalFormat = gl.RGBA;
-    const border = 0;
-    const format = gl.RGBA;
-    const type = gl.UNSIGNED_BYTE;
-    const data = null;
-
-    // I think this just set up the metadata above?
-    gl.texImage2D(gl.TEXTURE_2D, level, internalFormat, border, format, type, data);
-
-    // set filtering so we don't need mips
-    gl.textParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-    gl.textParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-    gl.textParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-
-    // create frame buffer
-    const frameBuffer = gl.createFrameBuffer();
-    gl.bindFrameBuffer(gl.FRAME_BUFFER, frameBuffer);
-
-    // attach texture as first color attachment
-    const attachmentPoint = gl.COLOR_ATTACHMENT0;
-    gl.frameBufferTexture2D(gl.FRAME_BUFFER, attachmentPoint, gl.TEXTURE_2D, texture, level);
-
-    return [frameBuffer, textureBuffer];
 }
 
 
@@ -65,7 +32,7 @@ function createMVP()
     return mvp;
 }
 
-let first = true;
+
 function updateVelocities(instances, stars)
 {
     // placeholders
@@ -154,39 +121,102 @@ function updateVelocities(instances, stars)
     }
 }
 
-function drawScene(mvp, models, instances, stars)
-{
-    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-    
-    mat4.rotateX(mvp.view, mvp.view, 0.001);
 
-    for (let i = 0; i < instances.length; i++)
+function drawScene(frameBuffer, texture, mvp, models, instances, stars)
+{   
+    mat4.rotateX(mvp.view, mvp.view, 0.01);
+
+    const cubeShader = models[0].shader;
+
+    cubeShader.bind();
+    const uUseTexture = cubeShader.uniforms.get("uUseTexture");
+    const uTexture = cubeShader.uniforms.get("uTexture");
+
+    // draw to framebuffer
     {
-        const inst = instances[i];
-        const model = models[0];
+        gl.bindFramebuffer(gl.FRAMEBUFFER, frameBuffer);
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture, 0);
 
-        mat4.fromRotation(mvp.model, Math.hypot(...inst.position), inst.position);
-        mat4.translate(mvp.model, mvp.model, inst.position);
+        gl.clearColor(1.0, 1.0, 1.0, 1.0);
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+        cubeShader.bind();
+
+        gl.uniform1i(uUseTexture, false);
+        gl.uniform1i(uTexture, 0);
+
+        for (let i = 0; i < instances.length; i++)
+        {
+            const inst = instances[i];
+            const model = models[1];
+
+            mat4.fromRotation(mvp.model, Math.hypot(...inst.position), inst.position);
+            mat4.translate(mvp.model, mvp.model, inst.position);
 
 
-        model.render(mvp);
+            model.render(mvp);
+        }
+
+        for (let i = 0; i < stars.length; i++)
+        {
+            const inst = stars[i];
+            const model = models[0];
+
+            mat4.fromRotation(mvp.model, Math.hypot(...inst.position), inst.position);
+            mat4.translate(mvp.model, mvp.model, inst.position);
+            mat4.scale(mvp.model, mvp.model, vec3.fromValues(5, 5, 5));
+
+            model.render(mvp);
+        }
+
+        // free texture for reading?
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, null, 0);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     }
 
-    for (let i = 0; i < stars.length; i++)
+    // draw to canvas
     {
-        const inst = stars[i];
-        const model = models[1];
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
-        
+        gl.clearColor(0.0, 0.0, 0.0, 1.0);
 
-        mat4.fromRotation(mvp.model, Math.hypot(...inst.position), inst.position);
-        mat4.translate(mvp.model, mvp.model, inst.position);
-        mat4.scale(mvp.model, mvp.model, vec3.fromValues(5, 5, 5));
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-        model.render(mvp);
+        gl.activeTexture(gl.TEXTURE0)
+        gl.bindTexture(gl.TEXTURE_2D, texture);
+
+        gl.uniform1i(uTexture, 0);
+        gl.uniform1i(uUseTexture, true);
+
+        for (let i = 0; i < instances.length; i++)
+        {
+            const inst = instances[i];
+            const model = models[1];
+
+            mat4.fromRotation(mvp.model, Math.hypot(...inst.position), inst.position);
+            mat4.translate(mvp.model, mvp.model, inst.position);
+
+
+            model.render(mvp);
+        }
+
+        for (let i = 0; i < stars.length; i++)
+        {
+            const inst = stars[i];
+            const model = models[0];
+
+            mat4.fromRotation(mvp.model, Math.hypot(...inst.position), inst.position);
+            mat4.translate(mvp.model, mvp.model, inst.position);
+            mat4.scale(mvp.model, mvp.model, vec3.fromValues(5, 5, 5));
+
+            model.render(mvp);
+        }
+
+        // free texture for writing?
+        gl.bindTexture(gl.TEXTURE_2D, null);
     }
 
-    for (const i = 0; i < 10; i++)
+    for (let i = 0; i < 10; i++)
     {
         updateVelocities(instances, stars);
         
@@ -202,230 +232,6 @@ function drawScene(mvp, models, instances, stars)
     }
 }
 
-
-class Shader
-{
-    // shader program
-    program;
-
-    // shaders in program
-    vertex;
-    fragment;
-
-    // Map[string, int] of locations
-    attributes;
-    uniforms;
-
-    constructor(vertexSource, fragmentSource)
-    {
-        this.program = gl.createProgram();
-
-        this.vertex = gl.createShader(gl.VERTEX_SHADER);
-        this.fragment = gl.createShader(gl.FRAGMENT_SHADER);
-
-        // load shaders' source code onto graphics card
-        gl.shaderSource(this.vertex, vertexSource);
-        gl.shaderSource(this.fragment, fragmentSource);
-
-        // compile shaders
-        gl.compileShader(this.vertex);
-        gl.compileShader(this.fragment);
-
-        let compileSuccess;
-        let compilationLog;
-
-        compileSuccess = gl.getShaderParameter(this.vertex, gl.COMPILE_STATUS);
-        if (!compileSuccess)
-        {
-            compilationLog = gl.getShaderInfoLog(this.vertex);
-            console.log('Vertex shader failed to compile: ', compilationLog);
-        }
-
-        compileSuccess = gl.getShaderParameter(this.fragment, gl.COMPILE_STATUS);
-        if (!compileSuccess)
-        {
-            compilationLog = gl.getShaderInfoLog(this.fragment);
-            console.log('Fragment shader failed to compile: ', compilationLog);
-        }
-
-        // attach shaders to program
-        gl.attachShader(this.program, this.vertex);
-        gl.attachShader(this.program, this.fragment);
-
-        // link shaders together in program
-        gl.linkProgram(this.program);
-
-        // If creating the shader program failed, alert
-        if (!gl.getProgramParameter(this.program, gl.LINK_STATUS))
-        {
-            alert('Unable to initialize the shader program: ' + gl.getProgramInfoLog(this.program));
-            this.compile_success = false;
-            return;
-        }
-        else this.compile_success = true;
-
-        gl.useProgram(this.program);
-
-        // parse shaders for attributes and uniforms, get locations
-
-        const attributeExpression = /attribute [\w\d]+ (\w+)/g;
-        const uniformExpression = /uniform [\w\d]+ (\w+)/g;
-
-        this.attributes = new Map();
-        this.uniforms = new Map();
-        
-        for (const shaderSource of [vertexSource, fragmentSource])
-        {
-            // console.log("parsing shader source code for attributes and uniforms:");
-            // console.log(shaderSource);
-
-            for (const match of [...shaderSource.matchAll(attributeExpression)])
-            {
-                const name = match[1];
-                // console.log(`found attribute "${name}" in "${match[0]}"`)
-                if (!this.attributes.has(name))
-                    this.attributes.set(name, gl.getAttribLocation(this.program, name));
-            }
-            for (const match of [...shaderSource.matchAll(uniformExpression)])
-            {
-                const name = match[1]
-                // console.log(`found uniform "${name}" in "${match[0]}"`)
-                if (!this.uniforms.has(name))
-                    this.uniforms.set(name, gl.getUniformLocation(this.program, name));
-            }
-        }
-        // console.log(this.uniforms);
-        // console.log(this.attributes);
-    }
-
-    bind() { gl.useProgram(this.program); }
-};
-
-
-class BufferLayout
-{
-    constructor()
-    {
-        this.attributes = new Map;
-        this.stride = 0;
-    }
-
-    // name should be the same as in the vertex shader
-    push(name, type, count, normalized)
-    {
-        const attribute = {};
-
-        // index is set by shader
-        // attribute.index = this.attributes.length;
-
-        attribute.size = count;
-        attribute.type = type;
-        attribute.normalized = normalized ? true : false;
-        attribute.offset = this.stride;
-
-        // increase the stride
-        switch (type)
-        {
-            // explicitly catch undefined just incase one of the cases is also undefined
-            case undefined: alert(`Invalid attribute "${name}": type undefined`); break;
-            case gl.BYTE            : this.stride += count;     break;
-            case gl.SHORT           : this.stride += count * 2; break;
-            case gl.INT             : this.stride += count * 4; break;
-            case gl.UNSIGNED_BYTE   : this.stride += count;     break;
-            case gl.UNSIGNED_SHORT  : this.stride += count * 2; break;
-            case gl.UNSIGNED_INT    : this.stride += count * 4; break;
-            case gl.FLOAT           : this.stride += count * 4; break;
-            default: alert(`no case exists for the attribute "${name}" of type ${type}`);
-        }
-        this.attributes.set(name, attribute);
-    }
-
-    setAttributePointers(shader)
-    {
-        for (const [name, attrib] of this.attributes.entries())
-        {
-            const index = shader.attributes.get(name);
-            if (index === -1 || index === undefined) continue;
-
-            gl.vertexAttribPointer(
-                index,
-                attrib.size,
-                attrib.type,
-                attrib.normalized,
-                this.stride,
-                attrib.offset
-            );
-            gl.enableVertexAttribArray(index);
-        }
-    }
-};
-
-class VertexBuffer
-{
-    buffer;
-    layout;
-    vertexCount;
-
-    constructor(data, layout)
-    {
-        // data better be a byte array and evenly divisible by the stride of the layout!
-        this.vertexCount = data.byteLength / layout.stride;
-
-        // layout information for binding shader attributes
-        this.layout = layout;
-
-        // create the buffer
-        this.buffer = gl.createBuffer();
-
-        // load the data
-        gl.bindBuffer(gl.ARRAY_BUFFER, this.buffer);
-        gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW);
-    }
-
-    bind() { gl.bindBuffer(gl.ARRAY_BUFFER, this.buffer); }
-    bindShader(shader) { this.layout.setAttributePointers(shader); }
-}
-
-class Model
-{
-    // VertexBuffer instance
-    vbo;
-
-    // Shader instance
-    shader;
-
-    // render method
-    renderer;
-
-    constructor(args)
-    {
-        this.vbo = args.vbo;
-        this.shader = args.shader;
-        this.renderer = args.renderer;
-    }
-
-    setRenderer(renderer)
-    {
-        this.renderer = renderer;
-    }
-
-    render(mvp)
-    {
-        if (this.renderer) this.renderer(this, mvp);
-        else // defaul renderer
-        {
-            this.shader.bind();
-            this.vbo.bind();
-            this.vbo.bindShader(this.shader);
-            
-            gl.uniformMatrix4fv(this.shader.uniforms.get("uModelMatrix"), false, mvp.model);
-            gl.uniformMatrix4fv(this.shader.uniforms.get("uViewMatrix"), false, mvp.view);
-            gl.uniformMatrix4fv(this.shader.uniforms.get("uProjectionMatrix"), false, mvp.projection);
-            
-            gl.drawArrays(gl.LINES, 0, this.vbo.vertexCount);
-        }
-    }
-};
 
 function createCube()
 {
@@ -488,29 +294,36 @@ function createCube()
         uniform mat4 uViewMatrix;
         uniform mat4 uProjectionMatrix;
 
-        varying vec4 vFragColor;
+        varying vec4 vFragPosition;
         varying vec2 vTextureCoord;
 
         void main()
         {
-            vFragColor = vec4(aVertexPosition.xyz * 0.5 + 0.5, 1.0);
+            vFragPosition = vec4(aVertexPosition.xyz * 0.5 + 0.5, 1.0);
             gl_Position = uProjectionMatrix * uViewMatrix * uModelMatrix * aVertexPosition;
-            // vTextureCoord = aTextureCoord;
+            vTextureCoord = aTextureCoord;
         }
     `;
 
     const fsSource = `
         precision highp float;
 
-        varying vec4 vFragColor;
+        varying vec4 vFragPosition;
         varying vec2 vTextureCoord;
 
-        // uniform Sampler2D uSampler;
+        uniform int uUseTexture;
+        uniform sampler2D uTexture;
+
         void main()
         {
-            // gl_FragColor = texture2D(uSampler, vTextureCoord);
-            // gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0);
-            gl_FragColor = vFragColor;
+            if (uUseTexture == 1)
+            {
+                gl_FragColor = texture2D(uTexture, vTextureCoord);
+            }
+            else
+            {
+                gl_FragColor = vFragPosition;
+            }
         }
     
     `;
@@ -526,7 +339,6 @@ function createCube()
         model.vbo.bind();
         model.vbo.bindShader(model.shader);
 
-        
         gl.uniformMatrix4fv(model.shader.uniforms.get("uModelMatrix"), false, mvp.model);
         gl.uniformMatrix4fv(model.shader.uniforms.get("uViewMatrix"), false, mvp.view);
         gl.uniformMatrix4fv(model.shader.uniforms.get("uProjectionMatrix"), false, mvp.projection);
@@ -583,7 +395,7 @@ function createSphere(lattitudeDivisions, longitudeDivisions)
             const latAngle1 = (i + 2) / (lattitudeDivisions + 1) * Math.PI;
             
             // there are (longitudeDivisions + 1) pairs, so the triangle strip connects to itself
-            for (j = 0; j < longitudeDivisions + 1; j++)
+            for (let j = 0; j < longitudeDivisions + 1; j++)
             {
                 const longAngle = j / longitudeDivisions * twoPI;
 
@@ -688,16 +500,19 @@ function createSphere(lattitudeDivisions, longitudeDivisions)
     return model;
 }
 
-function main() {
+
+function main()
+{    
     const canvas = document.querySelector('#render-canvas');
-    gl = canvas.getContext('webgl');
+    setContext(canvas);
   
     // If we don't have a GL context, give up now
-  
     if (!gl) {
       alert('Unable to initialize WebGL. Your browser or machine may not support it.');
       return;
     }
+
+
 
     const mvp = createMVP();
 
@@ -715,7 +530,7 @@ function main() {
         const dy = Math.random() - 0.5;
         const dz = Math.random() - 0.5;
 
-        body = {
+        const body = {
             position: vec3.fromValues(px * 100, py * 100, pz * 100),
             velocity: vec3.fromValues(dx * 0.0, dy * 0.0, dz * 0.0),
             mass: Math.random() + 1.0 * 1000 + 100,
@@ -738,7 +553,7 @@ function main() {
         const dx = Math.sin(velAngle);
         const dy = Math.cos(velAngle);
 
-        star = {
+        const star = {
             position: vec3.fromValues(px * 50, py * 50, 0.0),
             velocity: vec3.fromValues(dx * 0.3, dy * 0.3, 0.0),
             mass: 100000,
@@ -768,12 +583,36 @@ function main() {
         return;
     }
 
+    const frameBuffer = gl.createFramebuffer();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, frameBuffer);
+    const texture = gl.createTexture();
+
+    // set up texture properties
+    {
+        gl.bindTexture(gl.TEXTURE_2D, texture);
+        const level = 0;
+        const internalFormat = gl.RGBA;
+        const width = canvas.clientWidth;
+        const height = canvas.clientHeight;
+        const border = 0;
+        const format = gl.RGBA;
+        const type = gl.UNSIGNED_BYTE;
+        const data = null;
+
+        gl.texImage2D(gl.TEXTURE_2D, level, internalFormat, width, height, border, format, type, data);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+        gl.bindTexture(gl.TEXTURE_2D, null);
+    }
+
     const models = [cube, sphere];
 
     console.log(models);
 
     // Draw the scene
-    setInterval(drawScene, 1000 / 15, mvp, models, instances, stars);
+    setInterval(drawScene, 1000 / 15, frameBuffer, texture, mvp, models, instances, stars);
 }
 
 window.onload = main;
