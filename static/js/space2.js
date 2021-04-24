@@ -1,4 +1,4 @@
-import { VertexBuffer, BufferLayout } from './modules/VertexBuffer.js';
+import { VertexBuffer, BufferLayout } from './modules/vertexBuffer.js';
 import { Model } from './modules/model.js';
 import { Shader } from './modules/shader.js';
 import { gl, setContext } from './modules/common.js';
