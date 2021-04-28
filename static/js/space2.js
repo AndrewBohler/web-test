@@ -3,6 +3,8 @@ import { Model } from './modules/model.js';
 import { Shader } from './modules/shader.js';
 import { gl, setContext } from './modules/common.js';
 
+var canvas;
+
 
 function setupScene()
 {
@@ -17,7 +19,7 @@ function createMVP()
 {
     const fieldOfView = 45 * Math.PI / 180;   // in radians
     const aspect = gl.canvas.clientWidth / gl.canvas.clientHeight;
-    const zNear = 0.1;
+    const zNear = 1.0;
     const zFar = 10000.0;
 
     const mvp = {
@@ -27,7 +29,25 @@ function createMVP()
     }
 
     mat4.perspective(mvp.projection, fieldOfView, aspect, zNear, zFar);
-    mat4.translate(mvp.view, mvp.view, [-0.0, 0.0, -150.0]);
+    mat4.translate(mvp.view, mvp.view, [0.0, 0.0, -150.0]);
+
+    return mvp;
+}
+
+function createCubeMVP()
+{
+    const fieldOfView = Math.PI / 2;
+    const aspect = 1.0; // square
+    const zNear = 1.0;
+    const zFar = 10000.0;
+
+    const mvp = {
+        model: mat4.create(),
+        view: mat4.create(),
+        projection: mat4.create()
+    }
+
+    mat4.perspective(mvp.projection, fieldOfView, aspect, zNear, zFar);
 
     return mvp;
 }
@@ -121,164 +141,244 @@ function updateVelocities(instances, stars)
     }
 }
 
+const origin = mat4.create();
 
-function drawScene(frameBuffer, texture, mvp, models, instances, stars)
+function drawScene(frameBuffer, cubeTextures, mvp, models, instances, stars, cubemvp)
 {   
-    mat4.rotateX(mvp.view, mvp.view, 0.01);
+    mat4.rotateY(mvp.view, mvp.view, 0.005);
 
-    const cubeShader = models[0].shader;
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-    cubeShader.bind();
-    const uUseTexture = cubeShader.uniforms.get("uUseTexture");
-    const uTexture = cubeShader.uniforms.get("uTexture");
+    models.cube.shader.bind();
 
-    // draw to framebuffer
+    const projectionViewMatrix = mat4.create();
+    mat4.mul(projectionViewMatrix, mvp.projection, mvp.view);
+
+    const eye = vec3.fromValues(0.0, 0.0, 0.0);
+
+    const camera = [
+        mat4.create(), // front
+        mat4.create(), // back
+        mat4.create(), // top
+        mat4.create(), // bottom
+        mat4.create(), // left
+        mat4.create(), // right
+    ];
+
+    //             out     eye,       center,               up
+    mat4.lookAt(camera[0], eye, [ 0.0,  0.0,  1.0], [ 0.0,  1.0,  0.0]);
+    mat4.lookAt(camera[1], eye, [ 0.0,  0.0, -1.0], [ 0.0,  1.0,  0.0]);
+    mat4.lookAt(camera[2], eye, [ 0.0,  1.0,  0.0], [ 0.0,  1.0,  0.0]);
+    mat4.lookAt(camera[3], eye, [ 0.0, -1.0,  0.0], [ 0.0,  1.0,  0.0]);
+    mat4.lookAt(camera[4], eye, [ 1.0,  0.0,  0.0], [ 0.0,  1.0,  0.0]);
+    mat4.lookAt(camera[5], eye, [-1.0,  0.0,  0.0], [ 0.0,  1.0,  0.0]);
+    
+    // uniform locations
+    const uModelMatrix = models.cube.shader.uniforms.get("uModelMatrix");
+    const uViewMatrix = models.cube.shader.uniforms.get("uViewMatrix");
+
+    // view is the same for this frame
+    gl.uniformMatrix4fv(uViewMatrix, false, mvp.view);
+    
+    // size of textures we're rendering to
+    // gl.viewport(0, 0, 100, 100);
+
+    const uTexture = models.cube.shader.uniforms.get("uTexture");
+    const uUseTexture = models.cube.shader.uniforms.get("uTexture");
+    
+    // render cubes to canvas
+    for (let starIndex = 0; starIndex < stars.length; starIndex++)
     {
+        const star = stars[starIndex];
+
         gl.bindFramebuffer(gl.FRAMEBUFFER, frameBuffer);
-        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture, 0);
 
-        gl.clearColor(1.0, 1.0, 1.0, 1.0);
-        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-
-        cubeShader.bind();
-
-        gl.uniform1i(uUseTexture, false);
-        gl.uniform1i(uTexture, 0);
-
-        for (let i = 0; i < instances.length; i++)
-        {
-            const inst = instances[i];
-            const model = models[1];
-
-            mat4.fromRotation(mvp.model, Math.hypot(...inst.position), inst.position);
-            mat4.translate(mvp.model, mvp.model, inst.position);
-
-
-            model.render(mvp);
-        }
-
-        for (let i = 0; i < stars.length; i++)
-        {
-            const inst = stars[i];
-            const model = models[0];
-
-            mat4.fromRotation(mvp.model, Math.hypot(...inst.position), inst.position);
-            mat4.translate(mvp.model, mvp.model, inst.position);
-            mat4.scale(mvp.model, mvp.model, vec3.fromValues(5, 5, 5));
-
-            model.render(mvp);
-        }
-
-        // free texture for reading?
-        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, null, 0);
-        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-    }
-
-    // draw to canvas
-    {
-        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-
-        gl.clearColor(0.0, 0.0, 0.0, 1.0);
-
-        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-
-        gl.activeTexture(gl.TEXTURE0)
-        gl.bindTexture(gl.TEXTURE_2D, texture);
-
-        gl.uniform1i(uTexture, 0);
-        gl.uniform1i(uUseTexture, true);
-
-        for (let i = 0; i < instances.length; i++)
-        {
-            const inst = instances[i];
-            const model = models[1];
-
-            mat4.fromRotation(mvp.model, Math.hypot(...inst.position), inst.position);
-            mat4.translate(mvp.model, mvp.model, inst.position);
-
-
-            model.render(mvp);
-        }
-
-        for (let i = 0; i < stars.length; i++)
-        {
-            const inst = stars[i];
-            const model = models[0];
-
-            mat4.fromRotation(mvp.model, Math.hypot(...inst.position), inst.position);
-            mat4.translate(mvp.model, mvp.model, inst.position);
-            mat4.scale(mvp.model, mvp.model, vec3.fromValues(5, 5, 5));
-
-            model.render(mvp);
-        }
-
-        // free texture for writing?
-        gl.bindTexture(gl.TEXTURE_2D, null);
-    }
-
-    for (let i = 0; i < 10; i++)
-    {
-        updateVelocities(instances, stars);
+        // gl.clearColor(1.0, 1.0, 1.0, 1.0);
         
-        for (const bodies of [stars, instances])
+        models.cube.shader.bind();
+        
+        gl.uniform1i(uUseTexture, false);
+        // gl.uniform1i(uTexture, 0);
+
+        gl.viewport(0, 0, 100, 100);
+        
+        // render from the 3 faces of the cube visible to the camera
+        for (let vi = 0; vi < 6; vi++)
         {
-            for (const body of bodies)
+            // move this view to star position
+            mat4.invert(cubemvp.view, camera[vi]);
+            mat4.translate(cubemvp.view, cubemvp.view, star.position);
+            
             {
-                body.position[0] += body.velocity[0];
-                body.position[1] += body.velocity[1];
-                body.position[2] += body.velocity[2];
+                gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, models.cube.textures.get(vi), 0);
+                gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+                // render spheres to texture
+                for (let i = 0; i < instances.length; i++)
+                {
+                    const inst = instances[i];
+
+                    mat4.fromRotation(cubemvp.model, Math.hypot(...inst.position), inst.position);
+                    mat4.translate(cubemvp.model, cubemvp.model, inst.position);
+                    // mat4.scale(cubemvp.model, cubemvp.model, vec3.fromValues(10, 10, 10));
+
+                    models.sphere.render(cubemvp);
+                }
+
+                // tell shader to not to use texture
+                models.cube.shader.bind();
+                gl.uniform1i(uUseTexture, false);
+
+                // render cubes to texture
+                for (let i = 0; i < stars.length; i++)
+                {
+                    if (i == starIndex) continue;
+                    
+                    const inst = stars[i];
+
+                    // mat4.fromRotation(mvp.model, Math.hypot(...inst.position), inst.position);
+                    mat4.translate(cubemvp.model, origin, inst.position);
+                    mat4.scale(cubemvp.model, cubemvp.model, vec3.fromValues(10, 10, 10));
+
+                    models.cube.render(cubemvp);
+                }                
             }
+        }
+
+        gl.viewport(0, 0, canvas.clientWidth, canvas.clientHeight);
+
+        // unbind texture so we can read from it 
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, null, 0);
+
+        // unbind framebuffer to render to canvas
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+
+        mat4.translate(mvp.model, origin, star.position);
+        mat4.scale(mvp.model, mvp.model, [10, 10, 10]);
+
+        // manually bind textures
+        for (let tex = 0; tex < 6; tex++) {
+            gl.activeTexture(gl.TEXTURE0 + tex);
+            gl.bindTexture(gl.TEXTURE_2D, models.cube.textures.get(tex));
+        }
+
+        models.cube.shader.bind();
+        gl.uniform1i(models.cube.shader.uniforms.get("uUseTexture"), 1);
+
+        models.cube.render(mvp);
+
+        // manually unbind textures
+        for (let tex = 0; tex < 6; tex++) {
+            gl.activeTexture(gl.TEXTURE0 + tex);
+            gl.bindTexture(gl.TEXTURE_2D, null);
+        }
+
+    } // render cubes to canvas
+
+    // if (true)
+    // {
+    //     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    //     for (let star of stars)
+    //     {
+    //         mat4.translate(mvp.model, origin, star.position);
+
+    //         models.cube.render(mvp);
+    //     }
+    // }
+    
+    { // render spheres to canvas
+        // unbind any frambuffer so we can draw to screen
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+
+        // make sure viewport is right size
+        // gl.viewport(0, 0, canvas.clientWidth, canvas.clientHeight);
+
+        for (let i = 0; i < instances.length; i++)
+        {
+            const inst = instances[i];
+
+            mat4.fromRotation(mvp.model, Math.hypot(...inst.position), inst.position);
+            mat4.translate(mvp.model, mvp.model, inst.position);
+            // mat4.scale(mvp.model, mvp.model, vec3.fromValues(10, 10, 10));
+
+            models.sphere.render(mvp);
+        }
+    } // render spheres to canvas
+
+    // apply gravity
+    updateVelocities(instances, stars);
+    
+    for (const bodies of [stars, instances])
+    {
+        for (const body of bodies)
+        {
+            body.position[0] += body.velocity[0];
+            body.position[1] += body.velocity[1];
+            body.position[2] += body.velocity[2];
         }
     }
 }
+
+
+// used for cube faces, not really much of a camera
+class CubeFaceCamera
+{
+    lookFront(viewMatrix, modelMatrix)  { mat4.copy(viewMatrix, modelMatrix); } // same as model matrix
+    lookBack(viewMatrix, modelMatrix)   { mat4.rotateY(viewMatrix, modelMatrix, Math.PI); }
+    lookLeft(viewMatrix, modelMatrix)   { mat4.rotateY(viewMatrix, modelMatrix, Math.PI / 2.0); }
+    lookRight(viewMatrix, modelMatrix)  { mat4.rotateY(viewMatrix, modelMatrix, Math.PI / -2.0); }
+    lookTop(viewMatrix, modelMatrix)    { mat4.rotateX(viewMatrix, modelMatrix, Math.PI / 2); }
+    lookBottom(viewMatrix, modelMatrix) { mat4.rotateX(viewMatrix, modelMatrix, Math.PI / -2); }
+}   
 
 
 function createCube()
 {
     console.log("creating cube");
     const vertices = [
-        // position  3D  | textcoord 2D
+        // position  3D  | textcoord 2D | normal 3D
 
         // front
-         1.0,  1.0,  1.0,   1.0,  1.0,
-        -1.0,  1.0,  1.0,   0.0,  1.0,
-         1.0, -1.0,  1.0,   1.0,  0.0,
-        -1.0, -1.0,  1.0,   0.0,  0.0,
+         1.0,  1.0,  1.0,   0.0,  1.0,   0.0,  0.0,  1.0,
+        -1.0,  1.0,  1.0,   1.0,  1.0,   0.0,  0.0,  1.0,
+         1.0, -1.0,  1.0,   0.0,  0.0,   0.0,  0.0,  1.0,
+        -1.0, -1.0,  1.0,   1.0,  0.0,   0.0,  0.0,  1.0,
 
         // back
-         1.0,  1.0, -1.0,   1.0,  1.0,
-        -1.0,  1.0, -1.0,   0.0,  1.0,
-         1.0, -1.0, -1.0,   1.0,  0.0,
-        -1.0, -1.0, -1.0,   0.0,  0.0,
+         1.0,  1.0, -1.0,   1.0,  1.0,   0.0,  0.0, -1.0,
+        -1.0,  1.0, -1.0,   0.0,  1.0,   0.0,  0.0, -1.0,
+         1.0, -1.0, -1.0,   1.0,  0.0,   0.0,  0.0, -1.0,
+        -1.0, -1.0, -1.0,   0.0,  0.0,   0.0,  0.0, -1.0,
 
         // top
-         1.0,  1.0, -1.0,   1.0,  0.0,
-        -1.0,  1.0, -1.0,   0.0,  0.0,
-         1.0,  1.0,  1.0,   1.0,  1.0,
-        -1.0,  1.0,  1.0,   0.0,  1.0,
+         1.0,  1.0, -1.0,   1.0,  0.0,   0.0,  1.0,  0.0,
+        -1.0,  1.0, -1.0,   0.0,  0.0,   0.0,  1.0,  0.0,
+         1.0,  1.0,  1.0,   1.0,  1.0,   0.0,  1.0,  0.0,
+        -1.0,  1.0,  1.0,   0.0,  1.0,   0.0,  1.0,  0.0,
 
         // bottom
-         1.0, -1.0, -1.0,   1.0,  0.0,
-        -1.0, -1.0, -1.0,   0.0,  0.0,
-         1.0, -1.0,  1.0,   1.0,  1.0,
-        -1.0, -1.0,  1.0,   0.0,  1.0,
+         1.0, -1.0, -1.0,   1.0,  1.0,   0.0, -1.0,  0.0,
+        -1.0, -1.0, -1.0,   0.0,  1.0,   0.0, -1.0,  0.0,
+         1.0, -1.0,  1.0,   1.0,  0.0,   0.0, -1.0,  0.0,
+        -1.0, -1.0,  1.0,   0.0,  0.0,   0.0, -1.0,  0.0,
 
         // left
-        -1.0,  1.0,  1.0,   1.0,  1.0,
-        -1.0,  1.0, -1.0,   0.0,  1.0,
-        -1.0, -1.0,  1.0,   1.0,  0.0,
-        -1.0, -1.0, -1.0,   0.0,  0.0,
+        -1.0,  1.0,  1.0,   0.0,  1.0,  -1.0,  0.0,  0.0,
+        -1.0,  1.0, -1.0,   1.0,  1.0,  -1.0,  0.0,  0.0,
+        -1.0, -1.0,  1.0,   0.0,  0.0,  -1.0,  0.0,  0.0,
+        -1.0, -1.0, -1.0,   1.0,  0.0,  -1.0,  0.0,  0.0,
 
         // right
-         1.0,  1.0, -1.0,   1.0,  1.0,
-         1.0,  1.0,  1.0,   0.0,  1.0,
-         1.0, -1.0, -1.0,   1.0,  0.0,
-         1.0, -1.0,  1.0,   0.0,  0.0,
+         1.0,  1.0, -1.0,   0.0,  1.0,   1.0,  0.0,  0.0,
+         1.0,  1.0,  1.0,   1.0,  1.0,   1.0,  0.0,  0.0,
+         1.0, -1.0, -1.0,   0.0,  0.0,   1.0,  0.0,  0.0,
+         1.0, -1.0,  1.0,   1.0,  0.0,   1.0,  0.0,  0.0,
     ];
 
     const vbLayout = new BufferLayout();
     vbLayout.push("aVertexPosition", gl.FLOAT, 3, false);
     vbLayout.push("aTextureCoord", gl.FLOAT, 2, false);
+    vbLayout.push("aVertexNormal", gl.FLOAT, 3, false);
 
     console.log("cube layout: ", vbLayout);
 
@@ -289,43 +389,59 @@ function createCube()
     const vsSource = `
         attribute vec4 aVertexPosition;
         attribute vec2 aTextureCoord;
+        attribute vec4 aVertexNormal;
 
         uniform mat4 uModelMatrix;
         uniform mat4 uViewMatrix;
         uniform mat4 uProjectionMatrix;
 
-        varying vec4 vFragPosition;
+        varying vec4 vFragColor;
         varying vec2 vTextureCoord;
+        varying vec4 vFragNormal;
 
         void main()
         {
-            vFragPosition = vec4(aVertexPosition.xyz * 0.5 + 0.5, 1.0);
-            gl_Position = uProjectionMatrix * uViewMatrix * uModelMatrix * aVertexPosition;
-            vTextureCoord = aTextureCoord;
+            vFragNormal = uProjectionMatrix * uViewMatrix * uModelMatrix * aVertexNormal;
+            
+            // discard vertex if normal faces away from camera
+            if (vFragNormal.z <= 0.0) 
+            {
+                gl_Position = vec4(0.0, 0.0, 0.0, 1.0);
+                vFragColor.z = 0.0;
+            }
+            else
+            {
+                gl_Position = uProjectionMatrix * uViewMatrix * uModelMatrix * aVertexPosition;
+                vFragColor = vec4(aVertexPosition.xyz * 0.5 + 0.5, 1.0);
+                vTextureCoord = aTextureCoord;
+            }
         }
     `;
 
     const fsSource = `
         precision highp float;
-
-        varying vec4 vFragPosition;
-        varying vec2 vTextureCoord;
-
+        
         uniform int uUseTexture;
         uniform sampler2D uTexture;
-
+        
+        varying vec4 vFragColor;
+        varying vec2 vTextureCoord;
+        
         void main()
         {
-            if (uUseTexture == 1)
+            if ( vFragColor.a == 0.0)
             {
-                gl_FragColor = texture2D(uTexture, vTextureCoord);
+                discard;
+            }
+            else if (uUseTexture == 1)
+            {
+               gl_FragColor = texture2D(uTexture, vTextureCoord);
             }
             else
             {
-                gl_FragColor = vFragPosition;
+                gl_FragColor = vFragColor;
             }
         }
-    
     `;
 
     const shader = new Shader(vsSource, fsSource);
@@ -333,6 +449,33 @@ function createCube()
     if (!shader.compile_success) return null;
 
     const model = new Model({ shader: shader, vbo: vbo });
+
+    // textures for each face: front back top bottom left right
+    for (let i = 0; i < 6; i ++) model.textures.set(i, gl.createTexture());
+
+    // configure textures
+    for (let texture of model.textures.values())
+    {
+        gl.bindTexture(gl.TEXTURE_2D, texture);
+
+        const level = 0;
+        const internalFormat = gl.RGBA;
+        const width = 100.0;
+        const height = 100.0;
+        const border = 0;
+        const format = gl.RGBA;
+        const type = gl.UNSIGNED_BYTE;
+        const data = null;
+
+        gl.texImage2D(gl.TEXTURE_2D, level, internalFormat, width, height, border, format, type, data);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        
+        gl.bindTexture(gl.TEXTURE_2D, null);
+    }
+
+
 
     model.renderer = (model, mvp) => {
         model.shader.bind();
@@ -343,12 +486,28 @@ function createCube()
         gl.uniformMatrix4fv(model.shader.uniforms.get("uViewMatrix"), false, mvp.view);
         gl.uniformMatrix4fv(model.shader.uniforms.get("uProjectionMatrix"), false, mvp.projection);
 
-        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-        gl.drawArrays(gl.TRIANGLE_STRIP, 4, 4);
-        gl.drawArrays(gl.TRIANGLE_STRIP, 8, 4);
-        gl.drawArrays(gl.TRIANGLE_STRIP, 12, 4);
-        gl.drawArrays(gl.TRIANGLE_STRIP, 16, 4);
-        gl.drawArrays(gl.TRIANGLE_STRIP, 20, 4);
+        // // bind textures
+        // for (let i = 0; i < 6; i++)
+        // {
+        //     gl.activeTexture(gl.TEXTURE0 + i);
+        //     gl.bindTexture(gl.TEXTURE_2D, model.textures.get(i));
+        // }
+
+        const uTexture = model.shader.uniforms.get("uTexture");
+
+        for (let tex = 0, offset = 0; tex < 6; tex++, offset += 4)
+        {
+            gl.uniform1i(uTexture, tex);
+            gl.drawArrays(gl.TRIANGLE_STRIP, offset, 4);
+        }
+
+        // // unbind textures
+        // for (let i = 0; i < 6; i++)
+        // {
+        //     gl.activeTexture(gl.TEXTURE0 + i);
+        //     gl.bindTexture(gl.TEXTURE_2D, null);
+        // }
+
     };
 
     return model;
@@ -503,7 +662,7 @@ function createSphere(lattitudeDivisions, longitudeDivisions)
 
 function main()
 {    
-    const canvas = document.querySelector('#render-canvas');
+    canvas = document.querySelector('#render-canvas');
     setContext(canvas);
   
     // If we don't have a GL context, give up now
@@ -511,10 +670,6 @@ function main()
       alert('Unable to initialize WebGL. Your browser or machine may not support it.');
       return;
     }
-
-
-
-    const mvp = createMVP();
 
     setupScene();
 
@@ -532,13 +687,15 @@ function main()
 
         const body = {
             position: vec3.fromValues(px * 100, py * 100, pz * 100),
-            velocity: vec3.fromValues(dx * 0.0, dy * 0.0, dz * 0.0),
+            velocity: vec3.fromValues(dx * 1, dy * 1, dz * 1),
             mass: Math.random() + 1.0 * 1000 + 100,
             id: id++,
         }
 
         instances.push(body);
     }
+
+    // instances.push({position: vec3.fromValues(30, 0, 0), velocity: vec3.fromValues(0, 0, 0.4), mass: 1000, id: id++});
 
     const stars = [];
 
@@ -584,16 +741,20 @@ function main()
     }
 
     const frameBuffer = gl.createFramebuffer();
+    const cubeTextures = [];
     gl.bindFramebuffer(gl.FRAMEBUFFER, frameBuffer);
-    const texture = gl.createTexture();
-
-    // set up texture properties
+    
+    for (let i = 0; i < 3; i++)
     {
+        const texture = gl.createTexture();
+        
+        // set up texture properties
         gl.bindTexture(gl.TEXTURE_2D, texture);
+
         const level = 0;
         const internalFormat = gl.RGBA;
-        const width = canvas.clientWidth;
-        const height = canvas.clientHeight;
+        const width = 100.0;
+        const height = 100.0;
         const border = 0;
         const format = gl.RGBA;
         const type = gl.UNSIGNED_BYTE;
@@ -605,14 +766,23 @@ function main()
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
 
         gl.bindTexture(gl.TEXTURE_2D, null);
+
+        cubeTextures.push(texture);
     }
 
-    const models = [cube, sphere];
+
+    const models = {cube: cube, sphere: sphere};
 
     console.log(models);
 
+    const mvp = createMVP();
+    const cubemvp = createCubeMVP();
+
+    // camera projection doesn't change ever
+    gl.uniformMatrix4fv(cube.shader.uniforms.get("uProjectionMatrix"), false, mvp.projection);
+
     // Draw the scene
-    setInterval(drawScene, 1000 / 15, frameBuffer, texture, mvp, models, instances, stars);
+    setInterval(drawScene, 1000 / 15, frameBuffer, cubeTextures, mvp, models, instances, stars, cubemvp);
 }
 
 window.onload = main;
