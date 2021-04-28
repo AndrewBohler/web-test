@@ -143,7 +143,7 @@ function updateVelocities(instances, stars)
 
 const origin = mat4.create();
 
-function drawScene(frameBuffer, cubeTextures, mvp, models, instances, stars, cubemvp)
+function drawScene(frameBuffer, mvp, models, instances, stars, cubemvp)
 {   
     mat4.rotateY(mvp.view, mvp.view, 0.005);
 
@@ -202,7 +202,7 @@ function drawScene(frameBuffer, cubeTextures, mvp, models, instances, stars, cub
 
         gl.viewport(0, 0, 100, 100);
         
-        // render from the 3 faces of the cube visible to the camera
+        // render all faces
         for (let vi = 0; vi < 6; vi++)
         {
             // move this view to star position
@@ -234,10 +234,10 @@ function drawScene(frameBuffer, cubeTextures, mvp, models, instances, stars, cub
                 {
                     if (i == starIndex) continue;
                     
-                    const inst = stars[i];
+                    const star = stars[i];
 
                     // mat4.fromRotation(mvp.model, Math.hypot(...inst.position), inst.position);
-                    mat4.translate(cubemvp.model, origin, inst.position);
+                    mat4.translate(cubemvp.model, origin, star.position);
                     mat4.scale(cubemvp.model, cubemvp.model, vec3.fromValues(10, 10, 10));
 
                     models.cube.render(cubemvp);
@@ -741,35 +741,7 @@ function main()
     }
 
     const frameBuffer = gl.createFramebuffer();
-    const cubeTextures = [];
     gl.bindFramebuffer(gl.FRAMEBUFFER, frameBuffer);
-    
-    for (let i = 0; i < 3; i++)
-    {
-        const texture = gl.createTexture();
-        
-        // set up texture properties
-        gl.bindTexture(gl.TEXTURE_2D, texture);
-
-        const level = 0;
-        const internalFormat = gl.RGBA;
-        const width = 100.0;
-        const height = 100.0;
-        const border = 0;
-        const format = gl.RGBA;
-        const type = gl.UNSIGNED_BYTE;
-        const data = null;
-
-        gl.texImage2D(gl.TEXTURE_2D, level, internalFormat, width, height, border, format, type, data);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-
-        gl.bindTexture(gl.TEXTURE_2D, null);
-
-        cubeTextures.push(texture);
-    }
-
 
     const models = {cube: cube, sphere: sphere};
 
@@ -782,7 +754,7 @@ function main()
     gl.uniformMatrix4fv(cube.shader.uniforms.get("uProjectionMatrix"), false, mvp.projection);
 
     // Draw the scene
-    setInterval(drawScene, 1000 / 15, frameBuffer, cubeTextures, mvp, models, instances, stars, cubemvp);
+    setInterval(drawScene, 1000 / 15, frameBuffer, mvp, models, instances, stars, cubemvp);
 }
 
 window.onload = main;
