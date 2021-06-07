@@ -2,24 +2,45 @@ import { gl } from './common.js';
 
 class Model
 {
-    // VertexBuffer instance
-    vbo;
-
-    // Shader instance
-    shader;
-
-    // rendering function
+    name;
+    
+    // function
     renderer;
-
-    // map[slot: texture]
-    textures
+    
+    // everything the renderer needs
+    vertexbuffers;
+    shaders;
+    textures;
+    framebuffers;
 
     constructor(args)
     {
-        this.vbo = args.vbo;
-        this.shader = args.shader;
+        this.name = args.name;
         this.renderer = args.renderer;
+
+        this.vertexbuffers = new Map();
+        this.shaders = new Map();
         this.textures = new Map();
+        this.framebuffers = new Map();
+
+        // complex models have more than one vbo/shader/texture/fb
+        // lets map them for ease of access
+
+        if (args.vertexbuffers)
+            for (let [ name, vbo ] of args.vertexbuffers)
+                this.vertexbuffers.set(name, vbo);
+
+        if (args.shaders)
+            for (const [name, shader] of args.shaders)
+                this.shaders.set(name, shader);
+
+        if (args.textures)
+            for (let [ name, texture ] of args.textures)
+                this.textures.set(name, texture);
+
+        if (args.framebuffers)
+            for (const [name, fb] of args.framebuffers)
+                this.framebuffers.set(name, fb);
     }
 
     setRenderer(renderer) { this.renderer = renderer; }
@@ -29,7 +50,7 @@ class Model
     render(mvp)
     {
         if (this.renderer) this.renderer(this, mvp);
-        else // defaul renderer
+        else // default renderer
         {
             this.shader.bind();
             this.vbo.bind();
