@@ -1,0 +1,12 @@
+{% extends "layout/test.html" %}
+
+
+
+{% block content %}
+</div>
+<div id="render-area">
+</div>
+<canvas id="render-canvas" width="256" height="256"></canvas>
+<script src="{{ url_for('static', filename='js/frame-buffer-test.js') }}" type="module"></script>
+{% endblock content %}
+

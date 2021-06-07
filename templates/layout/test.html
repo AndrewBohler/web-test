@@ -48,6 +48,11 @@
         {% endif %}
                 <a href="{{ url_for('space') }}">Space</a>
             </li>
+        {% if title=="framebuffer" %}<li active="true">
+        {% else %}<li>
+        {% endif %}
+                <a href="{{ url_for('framebuffer') }}">FrameBuffer</a>
+            </li>
         {% if current_user.is_authenticated %}
             {% if title=="logout" %}<li active="true">
             {% else %}<li>
