@@ -141,3 +141,6 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# debugger launch config file
+.vscode/launch.json
