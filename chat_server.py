@@ -3,9 +3,15 @@ import colorama
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Callable, Dict, List, Optional, Type, Union
-from flask import Flask, render_template, redirect, url_for
+from flask import (
+    Flask,
+    redirect,
+    render_template,
+    send_from_directory,
+    url_for
+)
 from flask.globals import request, session
-from flask.helpers import flash
+from flask.helpers import flash, safe_join
 from flask_login import (
     LoginManager,
     current_user,
@@ -368,6 +374,17 @@ def chat_messages():
 def space():
     return render_template("test/space.html")
 
+
+@app.route("/framebuffer")
+def framebuffer():
+    return render_template("test/framebuffer.html")
+
+
+@app.route("/assets/<path:path>")
+def get_asset(path):
+    return send_from_directory(app.static_folder + "/assets", path)
+    
+        
 
 @app.route("/api/get/userlist")
 @login_required
