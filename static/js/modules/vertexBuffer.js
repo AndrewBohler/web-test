@@ -1,5 +1,8 @@
 import { gl } from './common.js';
 
+let CURRENT_BUFFER;
+
+
 class BufferLayout
 {
     constructor()
@@ -42,7 +45,7 @@ class BufferLayout
     {
         for (const [name, attrib] of this.attributes.entries())
         {
-            const index = shader.attributes.get(name);
+            const index = shader.getAttribLoc(name);
             if (index === -1 || index === undefined) continue;
 
             gl.vertexAttribPointer(
@@ -80,9 +83,21 @@ class VertexBuffer
         gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW);
     }
 
-    release() { gl.deleteBuffer(this.buffer); }
+    release() {
+        gl.deleteBuffer(this.buffer);
+        this.buffer = null;
+    }
 
-    bind() { gl.bindBuffer(gl.ARRAY_BUFFER, this.buffer); }
+    bind()
+    {
+        if (this.buffer === CURRENT_BUFFER) return;
+        else
+        {
+            gl.bindBuffer(gl.ARRAY_BUFFER, this.buffer);
+            CURRENT_BUFFER = this.buffer;
+        }
+    }
+
     bindShader(shader) { this.layout.setAttributePointers(shader); }
 }
 
