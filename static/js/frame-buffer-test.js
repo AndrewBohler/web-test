@@ -10,7 +10,7 @@ import { createAgents } from "./modules/models/surfaceTexture.js";
 async function main()
 {
     const dimension = 256;
-    const frameTime = 50;
+    const frameTime = 33;
 
     const canvas = document.getElementById("render-canvas");
     if (!canvas) return null;
@@ -30,9 +30,14 @@ async function main()
     // agentRenderer(testAgents, {framebuffer: framebuffer});
 
     // test model.render
-    setInterval((model) => {
-        gl.clear(gl.COLOR_BUFFER_BIT);
-        model.render();
+    const renderLoop = setInterval((model) => {
+        try {
+            gl.clear(gl.COLOR_BUFFER_BIT);
+            model.render();
+        } catch (error) {
+            clearInterval(renderLoop);
+            throw error;
+        }
     }, frameTime, testAgents);
 
 }

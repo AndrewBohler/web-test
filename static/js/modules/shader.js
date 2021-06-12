@@ -1,7 +1,7 @@
 import { gl } from './common.js';
 
 let CURRENT_PROGRAM;
-let DEBUG = 1;
+// let DEBUG = 1;
 
 function shaderLogging(level)
 {
@@ -31,7 +31,7 @@ function parseShader(source)
 
     for (let match of [...source.matchAll(expression)])
     {
-        console.log(match);
+        // console.log(match);
         const variable = {
             interface: match.groups.interface,
             precision: match.groups.precision,
@@ -48,11 +48,11 @@ function parseShader(source)
 // get attributes and uniforms from sources
 function parseProgramSources(vsSource, fsSource, name)
 {
-    console.log(`parsing shader program "${name ? name : ''}" source code`);
+    // console.log(`parsing shader program "${name ? name : ''}" source code`);
 
-    console.log("vertex shader: ");
+    // console.log("vertex shader: ");
     const vertex = parseShader(vsSource);
-    console.log("fragment shader: ");
+    // console.log("fragment shader: ");
     const fragment = parseShader(fsSource);
 
     const uniqueUniforms = new Map();
@@ -100,8 +100,8 @@ function parseProgramSources(vsSource, fsSource, name)
         }
     }
 
-    console.log(vertex.in, vertex.uniform, vertex.out);
-    console.log(fragment.in, fragment.uniform, fragment.out);
+    // console.log(vertex.in, vertex.uniform, vertex.out);
+    // console.log(fragment.in, fragment.uniform, fragment.out);
 
     return {
         attributes: [...vertex.in.values()],
@@ -172,14 +172,14 @@ class Shader
         if (!compileSuccess)
         {
             compilationLog = gl.getShaderInfoLog(this.vertex);
-            console.log(`Vertex shader "${name ? name : ''}" failed to compile: `, compilationLog);
+            console.warn(`Vertex shader "${name ? name : ''}" failed to compile: `, compilationLog);
         }
 
         compileSuccess = gl.getShaderParameter(this.fragment, gl.COMPILE_STATUS);
         if (!compileSuccess)
         {
             compilationLog = gl.getShaderInfoLog(this.fragment);
-            console.log(`Fragment shader "${name ? name : ''}" failed to compile: `, compilationLog);
+            console.warn(`Fragment shader "${name ? name : ''}" failed to compile: `, compilationLog);
         }
 
         // attach shaders to program
@@ -210,7 +210,7 @@ class Shader
             this._uniforms.set(uniform.name, gl.getUniformLocation(this.program, uniform.name));
 
         for (const error of parsed.errors)
-            console.log(`shader error: ${error}`);
+            console.warn(`shader error: ${error}`);
 
         for (const warning of parsed.warnings)
             console.log(`shader warning: ${warning}`);
@@ -262,12 +262,13 @@ class Shader
 
     bind()
     {
-        if (this.program === CURRENT_PROGRAM) return;
-        else
+        if (this.program !== CURRENT_PROGRAM)
         {
             gl.useProgram(this.program);
             CURRENT_PROGRAM = this.program;
         }
+
+        return this;
     }
 
     getAttribLoc(name)
